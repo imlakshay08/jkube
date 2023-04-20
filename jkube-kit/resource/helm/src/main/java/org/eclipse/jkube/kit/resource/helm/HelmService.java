@@ -48,6 +48,7 @@ import org.apache.commons.compress.archivers.tar.TarArchiveEntry;
 import org.apache.commons.io.FileUtils;
 import org.apache.commons.lang3.StringUtils;
 
+import static org.apache.commons.lang3.StringUtils.EMPTY;
 import static org.eclipse.jkube.kit.common.util.MapUtil.getNestedMap;
 import static org.eclipse.jkube.kit.common.util.TemplateUtil.escapeYamlTemplate;
 import static org.eclipse.jkube.kit.resource.helm.HelmServiceUtil.isRepositoryValid;
@@ -85,7 +86,7 @@ public class HelmService {
       final File sourceDir = prepareSourceDir(helmConfig, helmType);
       final File outputDir = prepareOutputDir(helmConfig, helmType);
       final File tarballOutputDir = new File(Objects.requireNonNull(helmConfig.getTarballOutputDir(),
-          "Tarball output directory is required"));
+          "Tarball output directory is required"), helmType.getOutputDir());
       final File templatesDir = new File(outputDir, "templates");
       FileUtils.forceMkdir(templatesDir);
 
@@ -101,8 +102,8 @@ public class HelmService {
       createValuesYaml(parameters, outputDir);
       logger.debug("Interpolating YAML Chart templates");
       interpolateChartTemplates(parameters, templatesDir);
-      final File tarballFile = new File(tarballOutputDir, String.format("%s-%s-%s.%s",
-          helmConfig.getChart(), helmConfig.getVersion(), helmType.getClassifier(), helmConfig.getChartExtension()));
+      final File tarballFile = new File(tarballOutputDir, String.format("%s-%s%s.%s",
+          helmConfig.getChart(), helmConfig.getVersion(), resolveHelmClassifier(helmConfig), helmConfig.getChartExtension()));
       logger.debug("Creating Helm configuration Tarball: '%s'", tarballFile.getAbsolutePath());
       final Consumer<TarArchiveEntry> prependNameAsDirectory = tae ->
           tae.setName(String.format("%s/%s", helmConfig.getChart(), tae.getName()));
@@ -152,9 +153,10 @@ public class HelmService {
       logger.debug("OutputDir: %s", helmConfig.getOutputDir());
 
       final File tarballOutputDir =
-          new File(Objects.requireNonNull(helmConfig.getTarballOutputDir(), "Tarball output directory is required"));
-      final File tarballFile = new File(tarballOutputDir, String.format("%s-%s-%s.%s",
-          helmConfig.getChart(), helmConfig.getVersion(), helmType.getClassifier(), helmConfig.getChartExtension()));
+          new File(Objects.requireNonNull(helmConfig.getTarballOutputDir(),
+            "Tarball output directory is required"), helmType.getOutputDir());
+      final File tarballFile = new File(tarballOutputDir, String.format("%s-%s%s.%s",
+          helmConfig.getChart(), helmConfig.getVersion(), resolveHelmClassifier(helmConfig), helmConfig.getChartExtension()));
 
       helmUploader.uploadSingle(tarballFile, helmRepository);
     }
@@ -322,5 +324,12 @@ public class HelmService {
       throw new IllegalArgumentException("Helm parameters must be declared with a valid name: " + p.getParameter().toString());
     });
     return parameters;
+  }
+
+  private static String resolveHelmClassifier(HelmConfig helmConfig) {
+    if (StringUtils.isBlank(helmConfig.getTarFileClassifier())) {
+      return EMPTY;
+    }
+    return "-" + helmConfig.getTarFileClassifier();
   }
 }

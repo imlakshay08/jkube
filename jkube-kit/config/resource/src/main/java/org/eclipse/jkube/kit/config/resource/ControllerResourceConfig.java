@@ -42,4 +42,6 @@ public class ControllerResourceConfig {
   private String imagePullPolicy;
   private Integer replicas;
   private String restartPolicy;
+  private ContainerResourcesConfig containerResources;
+  private String schedule;
 }

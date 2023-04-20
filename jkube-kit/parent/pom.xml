@@ -20,7 +20,7 @@
   <parent>
     <groupId>org.eclipse.jkube</groupId>
     <artifactId>jkube</artifactId>
-    <version>1.12-SNAPSHOT</version>
+    <version>1.13-SNAPSHOT</version>
     <relativePath>../../pom.xml</relativePath>
   </parent>
 
@@ -34,7 +34,7 @@
   <properties>
     <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
 
-    <version.bouncycastle.bcpkix>1.70</version.bouncycastle.bcpkix>
+    <version.bouncycastle.bcpkix>1.72</version.bouncycastle.bcpkix>
     <version.commons-codec>1.15</version.commons-codec>
     <version.commons-compress>1.22</version.commons-compress>
     <version.commons-lang3>3.12.0</version.commons-lang3>
@@ -504,7 +504,7 @@
 
       <dependency>
         <groupId>org.bouncycastle</groupId>
-        <artifactId>bcpkix-jdk15on</artifactId>
+        <artifactId>bcpkix-jdk18on</artifactId>
         <version>${version.bouncycastle.bcpkix}</version>
       </dependency>
 
@@ -734,6 +734,10 @@
             <artifactId>bcprov-jdk15on</artifactId>
           </exclusion>
           <exclusion>
+            <groupId>org.bouncycastle</groupId>
+            <artifactId>bcprov-jdk18on</artifactId>
+          </exclusion>
+          <exclusion>
             <groupId>org.junit.jupiter</groupId>
             <artifactId>junit-jupiter-api</artifactId>
           </exclusion>
@@ -766,11 +770,15 @@
         <exclusions>
           <exclusion>
             <groupId>org.bouncycastle</groupId>
-            <artifactId>bcpkix-jdk15on</artifactId>
+            <artifactId>bcprov-jdk15on</artifactId>
           </exclusion>
           <exclusion>
             <groupId>org.bouncycastle</groupId>
-            <artifactId>bcprov-jdk15on</artifactId>
+            <artifactId>bcpkix-jdk18on</artifactId>
+          </exclusion>
+          <exclusion>
+            <groupId>org.bouncycastle</groupId>
+            <artifactId>bcprov-jdk18on</artifactId>
           </exclusion>
           <exclusion>
             <groupId>org.slf4j</groupId>

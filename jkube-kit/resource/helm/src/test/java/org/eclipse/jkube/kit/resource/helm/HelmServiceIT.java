@@ -90,14 +90,14 @@ class HelmServiceIT {
     assertThat(new File(helmOutputDir, "openshift/additional-file.txt")).exists().isNotEmpty();
     assertThat(new File(helmOutputDir, "openshift/templates/test-pod.yaml")).exists().isNotEmpty();
     assertThat(new File(helmOutputDir, "openshift/templates/openshift.yaml")).exists().isNotEmpty();
-    ArchiveAssertions.assertThat(new File(helmOutputDir, "ITChart-1.33.7-helm.tar"))
+    ArchiveAssertions.assertThat(new File(helmOutputDir, "kubernetes/ITChart-1.33.7.tar"))
         .exists().isNotEmpty().isUncompressed().fileTree().containsExactlyInAnyOrder(
             "ITChart/additional-file.txt",
             "ITChart/templates/",
             "ITChart/templates/kubernetes.yaml",
             "ITChart/Chart.yaml",
             "ITChart/values.yaml");
-    ArchiveAssertions.assertThat(new File(helmOutputDir, "ITChart-1.33.7-helmshift.tar"))
+    ArchiveAssertions.assertThat(new File(helmOutputDir, "openshift/ITChart-1.33.7.tar"))
         .exists().isNotEmpty().isUncompressed().fileTree().containsExactlyInAnyOrder(
             "ITChart/additional-file.txt",
             "ITChart/templates/",

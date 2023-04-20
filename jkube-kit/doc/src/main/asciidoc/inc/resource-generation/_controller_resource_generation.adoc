@@ -11,6 +11,7 @@ In JKube terminology, a Controller resource is a Kubernetes resource which manag
 * https://kubernetes.io/docs/concepts/workloads/controllers/statefulset/[StatefulSet]
 * https://kubernetes.io/docs/concepts/workloads/controllers/daemonset/[DaemonSet]
 * https://kubernetes.io/docs/concepts/workloads/controllers/job/[Job]
+* https://kubernetes.io/docs/concepts/workloads/controllers/cron-jobs/[CronJob]
 ifeval::["{task-prefix}" == "oc"]
 * https://docs.openshift.com/container-platform/4.7/applications/deployments/what-deployments-are.html#deployments-and-deploymentconfigs_what-deployments-are[DeploymentConfig]
 endif::[]
@@ -91,6 +92,10 @@ This configuration field is focused only on changing various elements of Control
 
 For `Job`, this defaults to `OnFailure`. For others, it's not provided ({cluster} assumes it to be `Always`)
 
+| <<container-resources-configuration, `containerResources`>>
+| Configure Controller's compute resource requirements
+| `schedule`
+| Schedule for _CronJob_ written in https://en.wikipedia.org/wiki/Cron[Cron] syntax.
 |===
 
 
@@ -119,4 +124,19 @@ For `Job`, this defaults to `OnFailure`. For others, it's not provided ({cluster
 
 | `env`
 | Environment variables that will be added to this InitContainer in Pod template spec.
+|===
+
+[[container-resources-configuration]]
+==== Container Resource {plugin-configuration-type} configuration
+
+.containerResources fields for specifying compute resource requirements
+[cols="1,5"]
+|===
+| Element | Description
+
+| `requests`
+| The minimum amount of compute resources required. See https://kubernetes.io/docs/concepts/configuration/manage-resources-containers/[Kubernetes Resource Management Documentation] for more info.
+
+| `limits`
+| The maximum amount of compute resources allowed. See https://kubernetes.io/docs/concepts/configuration/manage-resources-containers/[Kubernetes Resource Management Documentation] for more info.
 |===

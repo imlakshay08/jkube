@@ -1,3 +1,16 @@
+/*
+ * Copyright (c) 2019 Red Hat, Inc.
+ * This program and the accompanying materials are made
+ * available under the terms of the Eclipse Public License 2.0
+ * which is available at:
+ *
+ *     https://www.eclipse.org/legal/epl-2.0/
+ *
+ * SPDX-License-Identifier: EPL-2.0
+ *
+ * Contributors:
+ *   Red Hat, Inc. - initial API and implementation
+ */
 apply plugin: 'liberty'
 apply plugin: 'war'
 apply plugin: 'org.eclipse.jkube.kubernetes'
@@ -20,7 +33,7 @@ buildscript {
     dependencies {
         classpath 'org.fusesource.jansi:jansi:1.18'
         classpath 'io.openliberty.tools:liberty-gradle-plugin:3.2'
-        classpath('org.eclipse.jkube.kubernetes:org.eclipse.jkube.kubernetes.gradle.plugin:1.11.0'
+        classpath('org.eclipse.jkube.kubernetes:org.eclipse.jkube.kubernetes.gradle.plugin:1.12.0'
             exclude group: 'org.fusesource.jansi', module: 'jansi'
         }
     }
