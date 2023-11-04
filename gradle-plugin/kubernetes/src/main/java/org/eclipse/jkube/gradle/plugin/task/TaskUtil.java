@@ -1,4 +1,4 @@
-/**
+/*
  * Copyright (c) 2019 Red Hat, Inc.
  * This program and the accompanying materials are made
  * available under the terms of the Eclipse Public License 2.0
@@ -53,7 +53,6 @@ public class TaskUtil {
         .dockerHost(kubernetesExtension.getDockerHostOrNull())
         .certPath(kubernetesExtension.getCertPathOrNull())
         .machine(kubernetesExtension.machine)
-        .minimalApiVersion(kubernetesExtension.getMinimalApiVersion().getOrNull())
         .skipMachine(kubernetesExtension.getSkipMachineOrDefault())
         .build();
     DockerAccessFactory dockerAccessFactory = new DockerAccessFactory();

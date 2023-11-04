@@ -1,4 +1,4 @@
-/**
+/*
  * Copyright (c) 2019 Red Hat, Inc.
  * This program and the accompanying materials are made
  * available under the terms of the Eclipse Public License 2.0
@@ -11,7 +11,6 @@
  * Contributors:
  *   Red Hat, Inc. - initial API and implementation
  */
-
 package org.eclipse.jkube.kit.config.service.kubernetes;
 
 import java.io.File;
@@ -31,10 +30,10 @@ import io.fabric8.kubernetes.client.KubernetesClient;
 import io.fabric8.kubernetes.client.dsl.base.CustomResourceDefinitionContext;
 import io.fabric8.kubernetes.client.server.mock.EnableKubernetesMockClient;
 import io.fabric8.kubernetes.client.server.mock.KubernetesMockServer;
-import io.fabric8.kubernetes.client.utils.Serialization;
 import org.apache.commons.io.FileUtils;
 import org.eclipse.jkube.kit.common.JKubeConfiguration;
 import org.eclipse.jkube.kit.common.KitLogger;
+import org.eclipse.jkube.kit.common.util.Serialization;
 import org.eclipse.jkube.kit.config.access.ClusterAccess;
 import org.eclipse.jkube.kit.config.access.ClusterConfiguration;
 import org.eclipse.jkube.kit.config.resource.ResourceConfig;
@@ -56,7 +55,7 @@ import static org.mockito.Mockito.spy;
 import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
 
-@SuppressWarnings({"unused", "unchecked"})
+@SuppressWarnings({"unused"})
 @EnableKubernetesMockClient(crud = true)
 class KubernetesUndeployServiceTest {
 
@@ -74,12 +73,7 @@ class KubernetesUndeployServiceTest {
       .log(logger)
       .platformMode(RuntimeMode.KUBERNETES)
       .configuration(JKubeConfiguration.builder().build())
-      .clusterAccess(new ClusterAccess(logger, ClusterConfiguration.builder().namespace("test").build()) {
-        @Override
-        public <T extends KubernetesClient> T createDefaultClient() {
-          return (T)kubernetesClient;
-        }
-      })
+      .clusterAccess(new ClusterAccess(ClusterConfiguration.from(kubernetesClient.getConfiguration()).namespace("test").build()))
       .build();
     kubernetesUndeployService = new KubernetesUndeployService(jKubeServiceHub, logger);
   }

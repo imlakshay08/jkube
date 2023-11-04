@@ -10,7 +10,7 @@ Roland Huß, James Strachan;
 :toc-title: {plugin}
 :doctype: book
 :icons: font
-:plugindir: ../../../../../plugin
+:plugindir: {docdir}../../../../../plugin
 :kitdoc-path: {docdir}/../../../../../jkube-kit/doc/src/main/asciidoc
 :plugin-type: maven
 :plugin-configuration-type: XML
@@ -33,7 +33,7 @@ include::inc/goals/_goals.adoc[]
 
 include::{kitdoc-path}/inc/_generator.adoc[]
 include::{kitdoc-path}/inc/_enricher.adoc[]
-include::inc/_profiles.adoc[]
+include::{kitdoc-path}/inc/profiles/_index.adoc[]
 include::{kitdoc-path}/inc/plugins/_jkube_plugins.adoc[]
 
 include::inc/_access.adoc[]
@@ -43,7 +43,6 @@ include::inc/_authentication.adoc[]
 include::inc/_volumes.adoc[]
 include::inc/_integrations.adoc[]
 
-include::inc/_faq.adoc[]
+include::{kitdoc-path}/inc/_faq.adoc[]
 
-include::inc/_appendix.adoc[]
-
+include::{kitdoc-path}/inc/mapping-config/_index.adoc[]

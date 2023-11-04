@@ -1,4 +1,4 @@
-/**
+/*
  * Copyright (c) 2019 Red Hat, Inc.
  * This program and the accompanying materials are made
  * available under the terms of the Eclipse Public License 2.0
@@ -15,6 +15,7 @@ package org.eclipse.jkube.kit.common;
 
 import java.io.BufferedReader;
 import java.io.BufferedWriter;
+import java.io.File;
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.InputStreamReader;
@@ -31,17 +32,22 @@ import org.apache.commons.lang3.StringUtils;
 
 /**
  * @author roland
- * @since 14/09/16
  */
 public abstract class ExternalCommand {
     protected final KitLogger log;
+    private final File workDir;
 
     private final ExecutorService executor = Executors.newFixedThreadPool(2);
 
     private int statusCode;
 
     protected ExternalCommand(KitLogger log) {
+        this(log, null);
+    }
+
+    protected ExternalCommand(KitLogger log, File dir) {
         this.log = log;
+        this.workDir = dir;
     }
 
     public void execute() throws IOException {
@@ -109,7 +115,7 @@ public abstract class ExternalCommand {
 
     private Process startProcess() throws IOException {
         try {
-            return Runtime.getRuntime().exec(getArgs());
+            return Runtime.getRuntime().exec(getArgs(), null, workDir);
         } catch (IOException e) {
             throw new IOException(String.format("Failed to start '%s' : %s",
                                                 getCommandAsString(),

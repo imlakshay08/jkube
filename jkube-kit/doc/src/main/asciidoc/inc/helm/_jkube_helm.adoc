@@ -3,28 +3,41 @@
 ifeval::["{plugin-type}" == "maven"]
 This goal is for creating
 https://helm.sh/docs/topics/charts[Helm charts]
-for your Maven project so that you can install, update or delete your app in Kubernetes
+for your Maven project so that you can install, update, or delete your app in Kubernetes
 using https://github.com/helm/helm[Helm].
-For creating a Helm chart you simply call `{goal-prefix}:helm` goal on the command line:
+To generate the Helm chart you simply need to call `{goal-prefix}:helm` goal on the command line:
+
 include::maven/_resource_helm.adoc[]
-The `{goal-prefix}:resource` goal is required to create the resource descriptors which are included in the Helm chart.
-If you have already built the resource then you can omit this goal.
+
+[NOTE]
+The `{goal-prefix}:resource` goal is required to create the resource descriptors that are included in the Helm chart.
+If you have already generated the resources in a previous step then you can omit this  goal.
 endif::[]
 
 ifeval::["{plugin-type}" == "gradle"]
 This task is for creating
 https://helm.sh/docs/topics/charts[Helm charts]
-for your Gradle project so that you can install, update or delete your app in Kubernetes
+for your Gradle project so that you can install, update, or delete your app in Kubernetes
 using https://github.com/helm/helm[Helm].
-For creating a Helm chart you simply call `{task-prefix}Helm` task on the command line:
-include::gradle/_resource_helm.adoc[]
-The `{task-prefix}Resource` goal is required to create the resource descriptors which are included in the Helm chart.
-If you have already built the resource then you can omit this task.
+To generate the Helm chart you simply need to call `{task-prefix}Helm` task on the command line:
 
+include::gradle/_resource_helm.adoc[]
+
+[NOTE]
+The `{task-prefix}Resource` goal is required to create the resource descriptors that are included in the Helm chart.
+If you have already generated the resources in a previous step then you can omit this task.
 
 endif::[]
 
-The configuration is defined in a `helm` section within the plugin's configuration:
+There are multiple ways to configure the generated Helm Chart:
+
+* By providing a `Chart.helm.yaml` fragment in `src/main/jkube` directory.
+* Through the `helm` section in the {plugin} {plugin-configuration-type} configuration.
+
+When using the fragment approach, you simply need to create a `Chart.helm.yaml` file in the `src/main/jkube` directory with the fields you want to override.
+JKube will take care of merging this fragment with the opinionated and configured defaults.
+
+The {plugin-configuration-type} configuration is defined in a `helm` section within the plugin's configuration:
 
 ifeval::["{plugin-type}" == "maven"]
 include::maven/_example_helm_config.adoc[]
@@ -39,6 +52,10 @@ This configuration section knows the following sub-elements in order to configur
 [cols="1,5,1"]
 |===
 | Element | Description | Property
+
+| *apiVersion*
+| The apiVersion of Chart.yaml schema, defaults to v1.
+| `jkube.helm.apiVersion`
 
 | *chart*
 | The Chart name
@@ -193,6 +210,12 @@ Defaults to empty string.
 | *repository*
 | URL pointing to a chart repository.
 
+| *condition*
+| Optional reference to a boolean value that toggles the inclusion of the dependency.  IE `subchart.enabled`. For more information see helm https://helm.sh/docs/topics/charts/#tags-and-condition-fields-in-dependencies[documentation].
+
+| *alias*
+| Optional reference to the map that will be passed as the value scope for the subchart. For more information see helm https://helm.sh/docs/topics/charts/#alias-field-in-dependencies[documentation].
+
 |===
 
 [[helm-parameters]]
@@ -212,9 +235,22 @@ Defaults to empty string.
 | In case we are generating a `.Values` variable, the default value.
 
   In case the placeholder has to be replaced by an expression, the Golang expression
-  e.g. `{{ .Chart.Name | upper }}`.
+  e.g. `{{ .Chart.Name \| upper }}`.
 
 |===
+
+=== Helm-specific fragments
+
+In addition to the standard Kubernetes <<introduction-examples-resource-fragments, resource fragments>>, you can also provide fragments for Helm `Chart.yaml` and `values.yaml` files.
+
+For the `Chart.yaml` file you can provide a `Chart.helm.yaml` fragment in the `src/main/jkube` directory.
+
+For the `values.yaml` file you can provide a `values.helm.yaml` fragment in the `src/main/jkube` directory.
+
+These fragments will be merged with the opinionated and configured defaults.
+The values provided in the fragments will override any of the generated default values taking precedence over them.
+
+=== Installing the generated Helm chart
 
 In a next step you can install this via the https://github.com/helm/helm/releases[helm command line tool] as follows:
 

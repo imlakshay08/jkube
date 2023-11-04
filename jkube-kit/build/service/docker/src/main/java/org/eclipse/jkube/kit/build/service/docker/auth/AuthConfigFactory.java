@@ -1,4 +1,4 @@
-/**
+/*
  * Copyright (c) 2019 Red Hat, Inc.
  * This program and the accompanying materials are made
  * available under the terms of the Eclipse Public License 2.0
@@ -539,7 +539,7 @@ public class AuthConfigFactory {
         if (!credProviderPresent) {
             log.info("It appears that you're using AWS ECR." +
                     " Consider integrating the AWS SDK in order to make use of common AWS authentication mechanisms," +
-                    " see https://www.eclipse.org/jkube/docs/kubernetes-maven-plugin#extended-authentication");
+                    " see https://www.eclipse.dev/jkube/docs/kubernetes-maven-plugin#extended-authentication");
             return null;
         }
         return new AwsSdkAuthConfigFactory(log, awsSdkHelper).createAuthConfig();

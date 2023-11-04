@@ -1,4 +1,4 @@
-/**
+/*
  * Copyright (c) 2019 Red Hat, Inc.
  * This program and the accompanying materials are made
  * available under the terms of the Eclipse Public License 2.0
@@ -24,7 +24,6 @@ import org.eclipse.jkube.kit.config.resource.ResourceConfig;
 import org.eclipse.jkube.kit.config.service.openshift.OpenshiftUndeployService;
 
 import io.fabric8.openshift.client.OpenShiftClient;
-import org.gradle.api.internal.provider.DefaultProperty;
 import org.gradle.api.provider.Property;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
@@ -43,7 +42,7 @@ import static org.mockito.Mockito.when;
 class OpenShiftUndeployTaskTest {
 
   @RegisterExtension
-  private final TaskEnvironmentExtension taskEnvironment = new TaskEnvironmentExtension();
+  public final TaskEnvironmentExtension taskEnvironment = new TaskEnvironmentExtension();
 
   private MockedConstruction<OpenshiftUndeployService> openshiftUndeployServiceMockedConstruction;
   private MockedConstruction<ClusterAccess> clusterAccessMockedConstruction;
@@ -54,8 +53,7 @@ class OpenShiftUndeployTaskTest {
     clusterAccessMockedConstruction = mockConstruction(ClusterAccess.class, (mock, ctx) -> {
       final OpenShiftClient openShiftClient = mock(OpenShiftClient.class);
       when(mock.createDefaultClient()).thenReturn(openShiftClient);
-      when(openShiftClient.adapt(OpenShiftClient.class)).thenReturn(openShiftClient);
-      when(openShiftClient.isSupported()).thenReturn(true);
+      when(openShiftClient.hasApiGroup("openshift.io", false)).thenReturn(true);
     });
     openshiftUndeployServiceMockedConstruction = mockConstruction(OpenshiftUndeployService.class);
     extension = new TestOpenShiftExtension();
@@ -107,7 +105,7 @@ class OpenShiftUndeployTaskTest {
     extension = new TestOpenShiftExtension() {
       @Override
       public Property<Boolean> getSkipUndeploy() {
-        return new DefaultProperty<>(Boolean.class).value(true);
+        return super.getSkipUndeploy().value(true);
       }
     };
     when(taskEnvironment.project.getExtensions().getByType(OpenShiftExtension.class)).thenReturn(extension);

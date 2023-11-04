@@ -1,4 +1,4 @@
-/**
+/*
  * Copyright (c) 2019 Red Hat, Inc.
  * This program and the accompanying materials are made
  * available under the terms of the Eclipse Public License 2.0
@@ -21,11 +21,8 @@ import java.nio.file.Path;
 import java.util.Properties;
 
 import io.fabric8.openshift.client.NamespacedOpenShiftClient;
-import org.eclipse.jkube.kit.common.KitLogger;
 import org.eclipse.jkube.kit.config.access.ClusterAccess;
 import org.eclipse.jkube.kit.config.resource.ResourceConfig;
-import org.eclipse.jkube.kit.config.service.ApplyService;
-import org.eclipse.jkube.kit.config.service.JKubeServiceHub;
 
 import org.apache.maven.plugin.MojoExecutionException;
 import org.apache.maven.plugin.MojoFailureException;
@@ -39,15 +36,12 @@ import org.mockito.MockedConstruction;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.ArgumentMatchers.any;
-import static org.mockito.Mockito.RETURNS_DEEP_STUBS;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.mockConstruction;
 import static org.mockito.Mockito.when;
-import static org.mockito.Mockito.withSettings;
 
 class ApplyMojoTest {
 
-  private MockedConstruction<JKubeServiceHub> jKubeServiceHubMockedConstruction;
   private MockedConstruction<ClusterAccess> clusterAccessMockedConstruction;
   private File kubernetesManifestFile;
   private MavenProject mavenProject;
@@ -58,14 +52,10 @@ class ApplyMojoTest {
 
   @BeforeEach
   void setUp(@TempDir Path temporaryFolder) throws IOException {
-    jKubeServiceHubMockedConstruction = mockConstruction(JKubeServiceHub.class,
-        withSettings().defaultAnswer(RETURNS_DEEP_STUBS), (mock, context) -> {
-          when(mock.getClient()).thenReturn(defaultKubernetesClient);
-          when(mock.getClusterAccess().createDefaultClient()).thenReturn(defaultKubernetesClient);
-          when(mock.getApplyService()).thenReturn(new ApplyService(defaultKubernetesClient, new KitLogger.SilentLogger()));
-        });
-    clusterAccessMockedConstruction = mockConstruction(ClusterAccess.class, (mock, context) ->
-        when(mock.getNamespace()).thenAnswer(invocation -> kubeConfigNamespace));
+    clusterAccessMockedConstruction = mockConstruction(ClusterAccess.class, (mock, context) -> {
+      when(mock.createDefaultClient()).thenReturn(defaultKubernetesClient);
+      when(mock.getNamespace()).thenAnswer(invocation -> kubeConfigNamespace);
+    });
     kubernetesManifestFile = Files.createFile(temporaryFolder.resolve("kubernetes.yml")).toFile();
     mavenProject = mock(MavenProject.class);
     when(mavenProject.getProperties()).thenReturn(new Properties());
@@ -77,6 +67,7 @@ class ApplyMojoTest {
         project = mavenProject;
         settings = mock(Settings.class);
         kubernetesManifest = kubernetesManifestFile;
+        interpolateTemplateParameters = true;
     }};
     // @formatter:on
   }
@@ -84,7 +75,6 @@ class ApplyMojoTest {
   @AfterEach
   void tearDown() {
     clusterAccessMockedConstruction.close();
-    jKubeServiceHubMockedConstruction.close();
     mavenProject = null;
     applyMojo = null;
   }

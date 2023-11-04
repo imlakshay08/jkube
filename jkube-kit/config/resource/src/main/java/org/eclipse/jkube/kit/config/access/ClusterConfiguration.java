@@ -1,4 +1,4 @@
-/**
+/*
  * Copyright (c) 2019 Red Hat, Inc.
  * This program and the accompanying materials are made
  * available under the terms of the Eclipse Public License 2.0
@@ -53,6 +53,7 @@ public class ClusterConfiguration {
   private String trustStorePassphrase;
   private String keyStoreFile;
   private String keyStorePassphrase;
+  private Boolean trustCerts;
 
   public String getNamespace() {
     return Optional.ofNullable(namespace).orElse(KubernetesHelper.getDefaultNamespace());
@@ -129,8 +130,34 @@ public class ClusterConfiguration {
       configBuilder.withTrustStorePassphrase(this.trustStorePassphrase);
     }
 
+    if (this.trustCerts != null) {
+      configBuilder.withTrustCerts(this.trustCerts);
+    }
+
     return configBuilder.build();
 
+  }
+
+  public static ClusterConfigurationBuilder from(Config kubernetesConfig) {
+    return new ClusterConfigurationBuilder()
+      .username(kubernetesConfig.getUsername())
+      .password(kubernetesConfig.getPassword())
+      .masterUrl(kubernetesConfig.getMasterUrl())
+      .apiVersion(kubernetesConfig.getApiVersion())
+      .namespace(kubernetesConfig.getNamespace())
+      .caCertFile(kubernetesConfig.getCaCertFile())
+      .caCertData(kubernetesConfig.getCaCertData())
+      .clientCertFile(kubernetesConfig.getClientCertFile())
+      .clientCertData(kubernetesConfig.getClientCertData())
+      .clientKeyFile(kubernetesConfig.getClientKeyFile())
+      .clientKeyData(kubernetesConfig.getClientKeyData())
+      .clientKeyAlgo(kubernetesConfig.getClientKeyAlgo())
+      .clientKeyPassphrase(kubernetesConfig.getClientKeyPassphrase())
+      .trustStoreFile(kubernetesConfig.getTrustStoreFile())
+      .trustStorePassphrase(kubernetesConfig.getTrustStorePassphrase())
+      .keyStoreFile(kubernetesConfig.getKeyStoreFile())
+      .keyStorePassphrase(kubernetesConfig.getKeyStorePassphrase())
+      .trustCerts(kubernetesConfig.isTrustCerts());
   }
 
   public static ClusterConfigurationBuilder from(Properties... properties) {

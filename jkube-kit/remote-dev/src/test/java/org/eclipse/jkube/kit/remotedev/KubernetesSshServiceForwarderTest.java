@@ -1,4 +1,4 @@
-/**
+/*
  * Copyright (c) 2019 Red Hat, Inc.
  * This program and the accompanying materials are made
  * available under the terms of the Eclipse Public License 2.0
@@ -70,7 +70,7 @@ class KubernetesSshServiceForwarderTest {
   }
 
   @Test
-  @DisplayName("deploys Pod with image: quay.io/jkube/jkube-remote-dev:0.0.18")
+  @DisplayName("deploys Pod with image: quay.io/jkube/jkube-remote-dev:0.0.20")
   void deployPodWithImage() {
     // When
     executorService.submit(kubernetesSshServiceForwarder);
@@ -86,7 +86,7 @@ class KubernetesSshServiceForwarderTest {
       .extracting(PodSpec::getContainers)
       .asList()
       .singleElement()
-      .hasFieldOrPropertyWithValue("image", "quay.io/jkube/jkube-remote-dev:0.0.18");
+      .hasFieldOrPropertyWithValue("image", "quay.io/jkube/jkube-remote-dev:0.0.20");
   }
   @Test
   @DisplayName("deploys Pod with port definitions")

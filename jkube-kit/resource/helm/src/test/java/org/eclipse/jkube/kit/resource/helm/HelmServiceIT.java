@@ -1,4 +1,4 @@
-/**
+/*
  * Copyright (c) 2019 Red Hat, Inc.
  * This program and the accompanying materials are made
  * available under the terms of the Eclipse Public License 2.0
@@ -20,20 +20,21 @@ import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.Arrays;
 import java.util.Collections;
+import java.util.List;
 import java.util.Map;
+import java.util.Properties;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.stream.Collectors;
 
 import org.eclipse.jkube.kit.common.JKubeConfiguration;
+import org.eclipse.jkube.kit.common.JavaProject;
 import org.eclipse.jkube.kit.common.KitLogger;
 import org.eclipse.jkube.kit.common.assertj.ArchiveAssertions;
-import org.eclipse.jkube.kit.common.util.ResourceUtil;
 
-import com.fasterxml.jackson.databind.ObjectMapper;
-import com.fasterxml.jackson.dataformat.yaml.YAMLFactory;
-import io.fabric8.openshift.api.model.ParameterBuilder;
 import io.fabric8.openshift.api.model.Template;
 import org.apache.commons.io.FileUtils;
+import org.eclipse.jkube.kit.common.util.Serialization;
+import org.eclipse.jkube.kit.config.resource.ResourceServiceConfig;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.io.TempDir;
@@ -43,15 +44,16 @@ import static org.junit.jupiter.api.Assertions.assertThrows;
 
 class HelmServiceIT {
 
-  private ObjectMapper mapper;
   private HelmService helmService;
   private HelmConfig helmConfig;
   private File helmOutputDir;
 
   @BeforeEach
   void setUp(@TempDir Path temporaryFolder) throws Exception {
-    mapper = new ObjectMapper(new YAMLFactory());
-    helmService = new HelmService(new JKubeConfiguration(), new KitLogger.SilentLogger());
+    helmService = new HelmService(
+      JKubeConfiguration.builder().project(JavaProject.builder().properties(new Properties()).build()).build(),
+      new ResourceServiceConfig(),
+      new KitLogger.SilentLogger());
     helmOutputDir = Files.createDirectory(temporaryFolder.resolve("helm-output")).toFile();
     helmConfig = new HelmConfig();
     helmConfig.setSourceDir(new File(HelmServiceIT.class.getResource("/it/sources").toURI()).getAbsolutePath());
@@ -63,6 +65,7 @@ class HelmServiceIT {
   @Test
   void generateHelmChartsTest() throws Exception {
     // Given
+    helmConfig.setApiVersion("v1");
     helmConfig.setChart("ITChart");
     helmConfig.setVersion("1.33.7");
     helmConfig.setTypes(Arrays.asList(HelmConfig.HelmType.OPENSHIFT, HelmConfig.HelmType.KUBERNETES));
@@ -70,11 +73,12 @@ class HelmServiceIT {
         new File(HelmServiceIT.class.getResource("/it/sources/additional-file.txt").toURI())
     ));
     helmConfig.setParameterTemplates(Collections.singletonList(
-        ResourceUtil.load(new File(HelmServiceIT.class.getResource("/it/sources/global-template.yml").toURI()), Template.class)
+        Serialization.unmarshal(HelmServiceIT.class.getResource("/it/sources/global-template.yml"), Template.class)
     ));
     helmConfig.setParameters(Arrays.asList(
-        new ParameterBuilder().withName("annotation_from_config").withValue("{{ .Chart.Name | upper }}").build(),
-        new ParameterBuilder().withName("annotation.from.config.dotted").withValue("{{ .Chart.Name }}").build()));
+        HelmParameter.builder().name("annotation_from_config").value("{{ .Chart.Name | upper }}").build(),
+        HelmParameter.builder().name("annotation.from.config.dotted").value("{{ .Chart.Name }}").build(),
+        HelmParameter.builder().name("deployment.replicas").value(1).build()));
     final AtomicInteger generatedChartCount = new AtomicInteger(0);
     helmConfig.setGeneratedChartListeners(Collections.singletonList(
         (helmConfig1, type, chartFile) -> generatedChartCount.incrementAndGet()));
@@ -113,8 +117,8 @@ class HelmServiceIT {
   void generateHelmChartsTest_withInvalidParameters_throwsException() {
     // Given
     helmConfig.setTypes(Collections.singletonList(HelmConfig.HelmType.KUBERNETES));
-    helmConfig.setParameters(Collections.singletonList(new ParameterBuilder()
-        .withValue("{{ .Chart.Name | upper }}").build()));
+    helmConfig.setParameters(Collections.singletonList(HelmParameter.builder()
+        .value("{{ .Chart.Name | upper }}").build()));
     // When
     final IllegalArgumentException result = assertThrows(IllegalArgumentException.class, () ->
         helmService.generateHelmCharts(helmConfig));
@@ -122,14 +126,34 @@ class HelmServiceIT {
     assertThat(result).hasMessageStartingWith("Helm parameters must be declared with a valid name:");
   }
 
+  @Test
+  void generateHelmChartsTest_preserveParameterCase() throws Exception {
+    // Given
+    helmConfig.setTypes(Collections.singletonList(HelmConfig.HelmType.KUBERNETES));
+    helmConfig.setParameters(Collections.singletonList(HelmParameter.builder().name("testCamelCase").value("testValue").build()));
+    // When
+    helmService.generateHelmCharts(helmConfig);
+    // Then
+    File valuesFile = new File(helmOutputDir, "kubernetes/values.yaml");
+    assertThat(new File(helmOutputDir, "kubernetes/Chart.yaml")).exists().isNotEmpty();
+    assertThat(valuesFile).exists().isNotEmpty();
+    List<String> values = Files.readAllLines(valuesFile.toPath());
+    // Contents should be
+    // ---
+    // testCamelCase: testValue
+    assertThat(values).hasSize(2);
+    String parameterLine = values.get(1);
+    assertThat(parameterLine).isEqualTo("testCamelCase: testValue");
+  }
+
   @SuppressWarnings("unchecked")
   private void assertYamls() throws Exception {
     final Path expectations = new File(HelmServiceIT.class.getResource("/it/expected").toURI()).toPath();
     final Path generatedYamls = helmOutputDir.toPath();
     for (Path expected : Files.walk(expectations).filter(Files::isRegularFile).collect(Collectors.toList())) {
-      final Map<String, ?> expectedContent = mapper.readValue(replacePlaceholders(expected), Map.class);
-      final Map<String, ?> actualContent =
-          mapper.readValue(replacePlaceholders(generatedYamls.resolve(expectations.relativize(expected))), Map.class);
+      final Map<String, ?> expectedContent = Serialization.unmarshal(replacePlaceholders(expected), Map.class);
+      final Map<String, ?> actualContent = Serialization.unmarshal(
+        replacePlaceholders(generatedYamls.resolve(expectations.relativize(expected))), Map.class);
       assertThat(actualContent).isEqualTo(expectedContent);
     }
   }

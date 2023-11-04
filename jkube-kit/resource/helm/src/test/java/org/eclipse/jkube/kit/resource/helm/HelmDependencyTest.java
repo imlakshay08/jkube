@@ -1,4 +1,4 @@
-/**
+/*
  * Copyright (c) 2019 Red Hat, Inc.
  * This program and the accompanying materials are made
  * available under the terms of the Eclipse Public License 2.0
@@ -28,11 +28,15 @@ class HelmDependencyTest {
         .name("name")
         .repository("repository")
         .version("version")
+        .alias("alias")
+        .condition("is.enabled")
         .build();
 
     HelmDependency sameHelmDependency = HelmDependency
         .builder()
         .name("name")
+        .alias("alias")
+        .condition("is.enabled")
         .repository("repository")
         .version("version")
         .build();
@@ -59,6 +63,7 @@ class HelmDependencyTest {
     assertThat(helmDependency)
         .hasFieldOrPropertyWithValue("name", "name")
         .hasFieldOrPropertyWithValue("repository", "repository")
-        .hasFieldOrPropertyWithValue("version", "version");
+        .hasFieldOrPropertyWithValue("version", "version")
+        .hasNoNullFieldsOrPropertiesExcept("alias", "condition");
   }
 }

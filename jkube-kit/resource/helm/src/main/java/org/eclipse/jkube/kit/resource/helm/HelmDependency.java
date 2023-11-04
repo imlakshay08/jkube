@@ -1,4 +1,4 @@
-/**
+/*
  * Copyright (c) 2019 Red Hat, Inc.
  * This program and the accompanying materials are made
  * available under the terms of the Eclipse Public License 2.0
@@ -48,5 +48,11 @@ public class HelmDependency {
 
   @JsonProperty
   private String repository;
+
+  @JsonProperty
+  private String condition;
+
+  @JsonProperty
+  private String alias;
 
 }

@@ -1,4 +1,4 @@
-/**
+/*
  * Copyright (c) 2019 Red Hat, Inc.
  * This program and the accompanying materials are made
  * available under the terms of the Eclipse Public License 2.0
@@ -42,7 +42,7 @@ import static org.mockito.Mockito.when;
 class OpenShiftApplyTaskTest {
 
   @RegisterExtension
-  private final TaskEnvironmentExtension taskEnvironment = new TaskEnvironmentExtension();
+  public final TaskEnvironmentExtension taskEnvironment = new TaskEnvironmentExtension();
 
   private MockedConstruction<ClusterAccess> clusterAccessMockedConstruction;
   private MockedConstruction<ApplyService> applyServiceMockedConstruction;
@@ -54,8 +54,7 @@ class OpenShiftApplyTaskTest {
       final OpenShiftClient openShiftClient = mock(OpenShiftClient.class);
       when(mock.createDefaultClient()).thenReturn(openShiftClient);
       when(openShiftClient.getMasterUrl()).thenReturn(new URL("http://openshiftapps-com-cluster:6443"));
-      when(openShiftClient.adapt(OpenShiftClient.class)).thenReturn(openShiftClient);
-      when(openShiftClient.isSupported()).thenReturn(true);
+      when(openShiftClient.hasApiGroup("openshift.io", false)).thenReturn(true);
     });
     applyServiceMockedConstruction = mockConstruction(ApplyService.class);
     extension = new TestOpenShiftExtension();
@@ -127,6 +126,6 @@ class OpenShiftApplyTaskTest {
     // Then
     assertThat(applyServiceMockedConstruction.constructed()).hasSize(1);
     verify(applyServiceMockedConstruction.constructed().iterator().next(), times(1))
-      .applyEntities(any(), eq(Collections.emptyList()), any(), eq(5L));
+      .applyEntities(any(), eq(Collections.emptyList()));
   }
 }

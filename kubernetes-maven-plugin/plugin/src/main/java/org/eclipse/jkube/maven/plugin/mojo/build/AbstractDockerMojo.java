@@ -1,4 +1,4 @@
-/**
+/*
  * Copyright (c) 2019 Red Hat, Inc.
  * This program and the accompanying materials are made
  * available under the terms of the Eclipse Public License 2.0
@@ -112,9 +112,6 @@ public abstract class AbstractDockerMojo extends AbstractMojo
 
     @Parameter(defaultValue = "${mojoExecution}", readonly = true)
     protected MojoExecution mojoExecution;
-
-    @Parameter(property = "jkube.docker.apiVersion")
-    protected String apiVersion;
 
     // For verbose output
     @Parameter(property = "jkube.docker.verbose", defaultValue = "false")
@@ -322,8 +319,6 @@ public abstract class AbstractDockerMojo extends AbstractMojo
 
     protected LogOutputSpecFactory logOutputSpecFactory;
 
-    protected String minimalApiVersion;
-
     // Access for creating OpenShift binary builds
     protected ClusterAccess clusterAccess;
 
@@ -418,7 +413,7 @@ public abstract class AbstractDockerMojo extends AbstractMojo
         logOutputSpecFactory = new LogOutputSpecFactory(useColorForLogging(), logStdout, logDate);
         authConfigFactory = new AuthConfigFactory(log);
         imageConfigResolver.setLog(log);
-        clusterAccess = new ClusterAccess(log, initClusterConfiguration());
+        clusterAccess = new ClusterAccess(initClusterConfiguration());
         runtimeMode = getConfiguredRuntimeMode();
     }
 
@@ -447,7 +442,7 @@ public abstract class AbstractDockerMojo extends AbstractMojo
                     .buildServiceConfig(buildServiceConfigBuilder().build())
                     .offline(offline)
                     .build();
-                resolvedImages = ConfigHelper.initImageConfiguration(apiVersion, getBuildTimestamp(getPluginContext(), CONTEXT_KEY_BUILD_TIMESTAMP, project.getBuild().getDirectory(), DOCKER_BUILD_TIMESTAMP), images, imageConfigResolver, log, filter, this, jkubeServiceHub.getConfiguration());
+                resolvedImages = ConfigHelper.initImageConfiguration(getBuildTimestamp(getPluginContext(), CONTEXT_KEY_BUILD_TIMESTAMP, project.getBuild().getDirectory(), DOCKER_BUILD_TIMESTAMP), images, imageConfigResolver, log, filter, this, jkubeServiceHub.getConfiguration());
                 executeInternal();
             } catch (IOException | DependencyResolutionRequiredException exp) {
                 logException(exp);
@@ -520,7 +515,6 @@ public abstract class AbstractDockerMojo extends AbstractMojo
                 .certPath(certPath)
                 .machine(machine)
                 .maxConnections(maxConnections)
-                .minimalApiVersion(minimalApiVersion)
                 .projectProperties(project.getProperties())
                 .skipMachine(skipMachine)
                 .log(log)

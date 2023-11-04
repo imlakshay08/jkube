@@ -20,10 +20,66 @@ Usage:
 # ./scripts/changelog.sh semanticVersionNumber [linkLabelStartNumber]
 ./scripts/extract-changelog-for-version.sh 1.3.37 5
 ```
-### 1.13-SNAPSHOT
+### 1.15-SNAPSHOT
+* Fix #2138: Support for Spring Boot Native Image
+* Fix #2186: Reuse ` io.fabric8.kubernetes.client.utils.KubernetesResourceUtil` ConfigMap utils methods
+* Fix #2200: Support for Helm `values.yaml` fragments
+* Fix #2356: Helm values.yaml parameter names preserve case
+* Fix #2369: Helm chart apiVersion can be configured
+* Fix #2379: Do not flatten image assembly layers in case of OpenShift Docker build strategy. 
+* Fix #2386: Helm icon inferred from annotations in independent resource files (not aggregated kubernetes/openshift.yaml)
+* Fix #2397: Default JKube work directory (`jkube.workDir`) changed from `${project.build.directory}/jkube` to `${project.build.directory}/jkube-temp`
+* Fix #2393: Remove timestamp from `org.label-schema.build-date` LABEL to utilize docker cache
+* Fix #2399: Helm no longer generates default function; broadens support for different value types
+* Fix #2400: Helm supports complex values in `values.yaml` fragments (such as annotations or arrays)
+* Fix #2414: OpenShift Gradle Plugin picks up `jkube.build.pushSecret` property
+* Fix #2417: Don't pass Invalid port in host headers for Helm OCI push
+* Fix #2425: Bump JKube Base images to 0.0.20
+
+_**Note**_:
+- Container Images generated using jkube opinionated defaults no longer contain full timestamp in `org.label-schema.build-date` label. The label contains the build date in the format `yyyy-MM-dd`.
+
+### 1.14.0 (2023-08-31)
+* Fix #1674: SpringBootGenerator utilizes the layered jar if present and use it as Docker layers
+* Fix #1713: Add HelidonHealthCheckEnricher to add Kubernetes health checks for Helidon applications
+* Fix #1714: Add HelidonGenerator to add opinionated container image for Helidon applications
+* Fix #1929: Docker Image Name parsing fix
+* Fix #1946: Initial support for Gitpod
+* Fix #1985: Update outdated methods in Spring Boot CRD Maven Quickstart
+* Fix #2091: Support for pushing Helm charts to OCI registries
+* Fix #2116: Remove user field from ImageName class
+* Fix #2219: Kind/Filename mappings include optional apiVersion configuration
+* Fix #2224: Quarkus native base image read from properties (configurable)
+* Fix #2228: Quarkus native base image uses UBI 8.7
+* Fix #2239: Quarkus healthcheck enricher infers overridden server port in application.properties
+* Fix #2290: JKube is not picking docker credentials from `~/.docker/config.json` file
+* Fix #2293: JibServiceUtil pushes separate images for additional tags specified in build configuration
+* Fix #2299: Gradle v8.x compatibility
+* Fix #2301: Add compatibility with SemVer versions
+* Fix #2302: Bump Kubernetes Client version to 6.8.0
+* Fix #2324: Update SpringBootConfigurationHelper for Spring Boot 3.x
+* Fix #2350: Enrichers with NAME configuration override fragments with default names
+* Fix #2353: Add condition and alias to HelmDependency model
+
+### 1.13.1 (2023-06-16)
+* Fix #2212: Bump Kubernetes Client version to 6.7.2 (fixes issues when trace-logging OpenShift builds -regression in 6.7.1-)
+
+### 1.13.0 (2023-06-14)
+* Fix #1478: Should detect and warn the user if creating ingress and ingress controller not available
+* Fix #2092: Support for `Chart.yaml` fragments
+* Fix #2150: Bump Kubernetes Client to 6.6.0 (fixes issues when trace-logging OpenShift builds)
+* Fix #2162: Bump Kubernetes Client to 6.6.1 (HttpClient with support for PUT + InputStream)
+* Fix #2165: Introduce a Kubernetes resource Security Hardening profile (opt-in)
+* Fix #2166: Potential command line injection in SpringBootWatcher
+* Fix #2170: `internal-microservice` profile prevents Service exposure
+* Fix #2174: Profile merge constructor accounts for parentProfile field
+* Fix #2187: `serviceAccount` configuration option has stopped working
+* Fix #2192: Bump Kubernetes Client to 6.7.1 (use JKube Serialization util to wrap around the Kubernetes Client KubernetesSerialization)
+* Fix #2201: Bumps JKube Base images to 0.0.19
 
 ### 1.12.0 (2023-04-03)
 * Fix #1179: Move storageClass related functionality out of VolumePermissionEnricher to PersistentVolumeClaimStorageClassEnricher
+* Fix #1118: refactor ConfigHelper.initImageConfiguration for clarity
 * Fix #1273: Deprecate `jkube.io` annotation prefix in favor of `jkube.eclipse.org` for JKubeAnnotations
 * Fix #2040: Add support for adding resource limits via controller resource config
 * Fix #1954: Add support for CronJob
@@ -472,3 +528,4 @@ Only the set of documented features are available to users.
 
 ### 0.1.0 (2019-12-19)
 * Initial release
+

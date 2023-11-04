@@ -1,4 +1,4 @@
-/**
+/*
  * Copyright (c) 2019 Red Hat, Inc.
  * This program and the accompanying materials are made
  * available under the terms of the Eclipse Public License 2.0
@@ -25,7 +25,7 @@ import static org.assertj.core.api.AssertionsForClassTypes.assertThat;
 
 class SmallRyeIT {
   @RegisterExtension
-  private final ITGradleRunnerExtension gradleRunner = new ITGradleRunnerExtension();
+  final ITGradleRunnerExtension gradleRunner = new ITGradleRunnerExtension();
 
   @Test
   void k8sResource_whenRun_generatesK8sManifestsWithProbes() throws IOException, ParseException {

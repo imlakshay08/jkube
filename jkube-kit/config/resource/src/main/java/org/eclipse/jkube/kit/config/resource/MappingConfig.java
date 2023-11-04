@@ -1,4 +1,4 @@
-/**
+/*
  * Copyright (c) 2019 Red Hat, Inc.
  * This program and the accompanying materials are made
  * available under the terms of the Eclipse Public License 2.0
@@ -27,7 +27,7 @@ import lombok.NoArgsConstructor;
 public class MappingConfig {
 
     private String kind;
-
+    private String apiVersion;
     private String filenameTypes;
 
     public String[] getFilenamesAsArray() {
@@ -38,6 +38,6 @@ public class MappingConfig {
     }
 
     public boolean isValid() {
-        return kind != null &&  filenameTypes != null && filenameTypes.length() > 0;
+        return kind != null && filenameTypes != null && filenameTypes.length() > 0;
     }
 }

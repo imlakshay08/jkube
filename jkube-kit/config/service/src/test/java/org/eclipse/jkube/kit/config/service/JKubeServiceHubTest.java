@@ -1,4 +1,4 @@
-/**
+/*
  * Copyright (c) 2019 Red Hat, Inc.
  * This program and the accompanying materials are made
  * available under the terms of the Eclipse Public License 2.0
@@ -185,7 +185,7 @@ class JKubeServiceHubTest {
     // Given
     jKubeServiceHubBuilder.platformMode(RuntimeMode.OPENSHIFT);
     try (JKubeServiceHub jKubeServiceHub = jKubeServiceHubBuilder.build()) {
-      when(openShiftClient.isSupported()).thenReturn(true);
+      when(openShiftClient.hasApiGroup("openshift.io", false)).thenReturn(true);
       // When
       final UndeployService result = jKubeServiceHub.getUndeployService();
       // Then
@@ -238,7 +238,7 @@ class JKubeServiceHubTest {
   @Test
   void getResourceService() {
     // Given
-    jKubeServiceHubBuilder.resourceService(new LazyBuilder<>(() -> mock(ResourceService.class)));
+    jKubeServiceHubBuilder.resourceService(new LazyBuilder<>(hub -> mock(ResourceService.class)));
     try (JKubeServiceHub jKubeServiceHub = jKubeServiceHubBuilder.build()) {
       // When
       final ResourceService resourceService = jKubeServiceHub.getResourceService();

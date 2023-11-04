@@ -1,4 +1,4 @@
-/**
+/*
  * Copyright (c) 2019 Red Hat, Inc.
  * This program and the accompanying materials are made
  * available under the terms of the Eclipse Public License 2.0
@@ -122,7 +122,7 @@ public abstract class SecretEnricher extends BaseEnricher {
 
             Secret secret = new SecretBuilder().withData(data).withMetadata(metadata).withType(type).build();
             if(!secretToIndexMap.containsKey(secretConfig.getName())) {
-                builder.addToSecretItems(i, secret);
+                builder.addToItems(i, secret);
             }
         }
     }

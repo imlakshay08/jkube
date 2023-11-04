@@ -1,4 +1,4 @@
-/**
+/*
  * Copyright (c) 2019 Red Hat, Inc.
  * This program and the accompanying materials are made
  * available under the terms of the Eclipse Public License 2.0
@@ -16,6 +16,7 @@ package org.eclipse.jkube.watcher.api;
 import io.fabric8.kubernetes.api.model.HasMetadata;
 import org.eclipse.jkube.kit.common.KitLogger;
 import org.eclipse.jkube.kit.common.util.ClassUtil;
+import org.eclipse.jkube.kit.common.util.OpenshiftHelper;
 import org.eclipse.jkube.kit.common.util.PluginServiceFactory;
 import org.eclipse.jkube.kit.config.image.ImageConfiguration;
 import org.eclipse.jkube.kit.config.resource.PlatformMode;
@@ -47,7 +48,7 @@ public class WatcherManager {
           watcherCtx.getBuildContext().getProject().getCompileClassPathElements(), watcherCtx.getLogger()));
     }
 
-    final boolean isOpenshift = watcherCtx.getJKubeServiceHub().getClusterAccess().isOpenShift();
+    final boolean isOpenshift = OpenshiftHelper.isOpenShift(watcherCtx.getJKubeServiceHub().getClient());
     final PlatformMode mode = isOpenshift ? PlatformMode.openshift : PlatformMode.kubernetes;
 
     final KitLogger log = watcherCtx.getLogger();

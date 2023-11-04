@@ -1,4 +1,4 @@
-/**
+/*
  * Copyright (c) 2019 Red Hat, Inc.
  * This program and the accompanying materials are made
  * available under the terms of the Eclipse Public License 2.0
@@ -126,7 +126,6 @@ class ResourceConfigTest {
         .hasFieldOrPropertyWithValue("remotes", Collections.singletonList("http://example.com/manifests/deployment.yaml"))
         .hasFieldOrPropertyWithValue("namespace", "foo-ns")
         .hasFieldOrPropertyWithValue("serviceAccount", "foo-sa")
-        .hasFieldOrPropertyWithValue("customResourceDefinitions", Collections.singletonList("crontab.sample.example.com"))
         .hasFieldOrPropertyWithValue("createExternalUrls", true)
         .hasFieldOrPropertyWithValue("routeDomain", "example.com")
         .satisfies(r -> assertProbe(r.getLiveness()))

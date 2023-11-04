@@ -1,4 +1,4 @@
-/**
+/*
  * Copyright (c) 2019 Red Hat, Inc.
  * This program and the accompanying materials are made
  * available under the terms of the Eclipse Public License 2.0
@@ -51,6 +51,14 @@ public class GeneratorConfig {
      */
     public String get(@Nonnull Configs.Config key, String defaultVal) {
         return ProcessorConfig.getConfigValue(config, name, GENERATOR_PROP_PREFIX, properties, key, defaultVal);
+    }
+
+    public String getWithFallback(Configs.Config key, String fallbackPropertyKey, String defaultVal) {
+        final String value = get(key, Configs.getFromSystemPropertyWithPropertiesAsFallback(properties, fallbackPropertyKey));
+        if (value != null) {
+            return value;
+        }
+        return defaultVal;
     }
 
 }

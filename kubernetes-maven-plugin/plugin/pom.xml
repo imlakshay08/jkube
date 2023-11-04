@@ -21,7 +21,7 @@
     <parent>
       <groupId>org.eclipse.jkube</groupId>
       <artifactId>kubernetes-maven-plugin-parent</artifactId>
-      <version>1.13-SNAPSHOT</version>
+      <version>1.15-SNAPSHOT</version>
       <relativePath>../pom.xml</relativePath>
     </parent>
 
@@ -133,6 +133,12 @@
 
         <dependency>
             <groupId>org.eclipse.jkube</groupId>
+            <artifactId>jkube-kit-helidon</artifactId>
+            <version>${jkube.kit.version}</version>
+        </dependency>
+
+        <dependency>
+            <groupId>org.eclipse.jkube</groupId>
             <artifactId>jkube-kit-profiles</artifactId>
         </dependency>
 
@@ -186,8 +192,8 @@
             </plugin>
 
             <plugin>
+                <groupId>org.apache.maven.plugins</groupId>
                 <artifactId>maven-resources-plugin</artifactId>
-                <version>${version.maven-resources-plugin}</version>
                 <executions>
                     <execution>
                         <id>copy-plexus-resources</id>

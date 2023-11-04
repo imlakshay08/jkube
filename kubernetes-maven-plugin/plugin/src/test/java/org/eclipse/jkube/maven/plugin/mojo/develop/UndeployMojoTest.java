@@ -1,4 +1,4 @@
-/**
+/*
  * Copyright (c) 2019 Red Hat, Inc.
  * This program and the accompanying materials are made
  * available under the terms of the Eclipse Public License 2.0
@@ -61,10 +61,11 @@ class UndeployMojoTest {
     openshiftHelperMockedStatic.when(() -> OpenshiftHelper.isOpenShift(any())).thenReturn(false);
     mavenUtilMockedStatic = mockStatic(MavenUtil.class);
     undeployMojo = new UndeployMojo() {{
-      this.resourceDir = Files.createDirectory(temporaryFolder.resolve("resources")).toFile();
-      this.kubernetesManifest = Files.createFile(temporaryFolder.resolve("kubernetes.yml")).toFile();
+      resourceDir = Files.createDirectory(temporaryFolder.resolve("resources")).toFile();
+      kubernetesManifest = Files.createFile(temporaryFolder.resolve("kubernetes.yml")).toFile();
       project = new MavenProject();
       settings = new Settings();
+      interpolateTemplateParameters = true;
       jkubeServiceHub = JKubeServiceHub.builder()
         .configuration(JKubeConfiguration.builder().build())
         .log(new KitLogger.SilentLogger())

@@ -1,4 +1,4 @@
-/**
+/*
  * Copyright (c) 2019 Red Hat, Inc.
  * This program and the accompanying materials are made
  * available under the terms of the Eclipse Public License 2.0
@@ -40,6 +40,7 @@ public class BuildReferenceDateUtil {
    * @param projectBuildDir project's build directory
    * @param dockerBuildTimestampFile docker build timestamp file
    * @return timestamp to use
+   * @throws IOException If failure in reading build timestamp file
    */
   public static Date getBuildTimestamp(Map<String, Object> pluginContext, String buildTimestampContextKey,
                                                     String projectBuildDir, String dockerBuildTimestampFile) throws IOException {

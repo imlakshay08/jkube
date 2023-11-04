@@ -1,4 +1,4 @@
-/**
+/*
  * Copyright (c) 2019 Red Hat, Inc.
  * This program and the accompanying materials are made
  * available under the terms of the Eclipse Public License 2.0
@@ -63,6 +63,7 @@ class HelmPushMojoTest {
     helmPushMojo.settings = new Settings();
     helmPushMojo.securityDispatcher = mock(SecDispatcher.class);
     helmPushMojo.mojoExecution = new MojoExecution(new MojoDescriptor());
+    helmPushMojo.interpolateTemplateParameters = true;
     helmPushMojo.project.getBuild()
       .setOutputDirectory(projectDir.resolve("target").resolve("classes").toFile().getAbsolutePath());
     helmPushMojo.project.getBuild().setDirectory(projectDir.resolve("target").toFile().getAbsolutePath());

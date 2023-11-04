@@ -20,7 +20,7 @@
   <parent>
     <groupId>org.eclipse.jkube</groupId>
     <artifactId>jkube</artifactId>
-    <version>1.13-SNAPSHOT</version>
+    <version>1.15-SNAPSHOT</version>
     <relativePath>../../pom.xml</relativePath>
   </parent>
 
@@ -34,10 +34,10 @@
   <properties>
     <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
 
-    <version.bouncycastle.bcpkix>1.72</version.bouncycastle.bcpkix>
+    <version.bouncycastle.bcpkix>1.76</version.bouncycastle.bcpkix>
     <version.commons-codec>1.15</version.commons-codec>
-    <version.commons-compress>1.22</version.commons-compress>
-    <version.commons-lang3>3.12.0</version.commons-lang3>
+    <version.commons-compress>1.24.0</version.commons-compress>
+    <version.commons-lang3>3.13.0</version.commons-lang3>
     <version.commons-text>1.10.0</version.commons-text>
     <version.gson>2.10.1</version.gson>
     <version.httpcore>4.4.16</version.httpcore>
@@ -47,26 +47,25 @@
     <version.javassist>3.29.2-GA</version.javassist>
     <!-- Don't upgrade Eclipse JGit to 6.x for Java 8 compatibility -->
     <version.jgit>5.12.0.202106070339-r</version.jgit>
-    <version.jnr-unixsocket>0.38.17</version.jnr-unixsocket>
+    <version.jnr-unixsocket>0.38.20</version.jnr-unixsocket>
     <version.jsr305>3.0.2</version.jsr305>
-    <version.lombok>1.18.24</version.lombok>
-    <version.maven-archiver>3.6.0</version.maven-archiver>
+    <version.maven-archiver>3.6.1</version.maven-archiver>
     <version.maven-core>3.6.3</version.maven-core>
-    <version.maven-filtering>3.3.0</version.maven-filtering>
-    <version.maven-plugin-annotations>3.6.0</version.maven-plugin-annotations>
-    <version.mockwebserver>0.2.2</version.mockwebserver>
-    <version.networknt.validator>1.0.76</version.networknt.validator>
+    <version.maven-filtering>3.3.1</version.maven-filtering>
+    <version.maven-plugin-annotations>3.9.0</version.maven-plugin-annotations>
+    <version.networknt.validator>1.0.86</version.networknt.validator>
     <version.openshift-client>${version.kubernetes-client}</version.openshift-client>
-    <version.plexus-classworlds>2.6.0</version.plexus-classworlds>
+    <version.plexus-classworlds>2.7.0</version.plexus-classworlds>
     <version.plexus-build-api>0.0.7</version.plexus-build-api>
     <version.plexus-utils>3.5.0</version.plexus-utils>
     <version.shrinkwrap>1.2.6</version.shrinkwrap>
     <version.validation-api>2.0.1.Final</version.validation-api>
     <version.wagon-ssh-external>2.3</version.wagon-ssh-external>
-    <version.ow2.asm>9.4</version.ow2.asm>
+    <version.ow2.asm>9.5</version.ow2.asm>
 
     <!-- =======================================================  -->
-    <version.image.jkube-images>0.0.18</version.image.jkube-images>
+    <version.image.jkube-images>0.0.20</version.image.jkube-images>
+    <version.image.ubi-minimal>8.7</version.image.ubi-minimal>
     <!-- === Java base image versions for docker, s2i (istag == s2i) -->
     <!-- Upstream -->
     <version.image.java.upstream.docker>${version.image.jkube-images}</version.image.java.upstream.docker>
@@ -100,6 +99,21 @@
     <image.java11.upstream.docker>quay.io/jkube/jkube-java-11:${version.image.java.upstream.docker}</image.java11.upstream.docker>
     <image.java11.upstream.istag>jkube-java-11:${version.image.java.upstream.s2i}</image.java11.upstream.istag>
 
+    <!-- Helidon -->
+    <image.helidon-native.upstream.s2i>registry.access.redhat.com/ubi8/ubi-minimal:${version.image.ubi-minimal}</image.helidon-native.upstream.s2i>
+    <image.helidon-native.upstream.docker>registry.access.redhat.com/ubi8/ubi-minimal:${version.image.ubi-minimal}</image.helidon-native.upstream.docker>
+    <image.helidon-native.upstream.istag>registry.access.redhat.com/ubi8/ubi-minimal:${version.image.ubi-minimal}</image.helidon-native.upstream.istag>
+
+    <!-- SpringBoot -->
+    <image.springboot-native.upstream.s2i>registry.access.redhat.com/ubi8/ubi-minimal:${version.image.ubi-minimal}</image.springboot-native.upstream.s2i>
+    <image.springboot-native.upstream.docker>registry.access.redhat.com/ubi8/ubi-minimal:${version.image.ubi-minimal}</image.springboot-native.upstream.docker>
+    <image.springboot-native.upstream.istag>registry.access.redhat.com/ubi8/ubi-minimal:${version.image.ubi-minimal}</image.springboot-native.upstream.istag>
+
+    <!-- Quarkus -->
+    <image.quarkus-native.upstream.s2i>quay.io/quarkus/ubi-quarkus-native-binary-s2i:1.0</image.quarkus-native.upstream.s2i>
+    <image.quarkus-native.upstream.docker>registry.access.redhat.com/ubi8/ubi-minimal:${version.image.ubi-minimal}</image.quarkus-native.upstream.docker>
+    <image.quarkus-native.upstream.istag>quay.io/quarkus/ubi-quarkus-native-binary-s2i:1.0</image.quarkus-native.upstream.istag>
+
     <!-- karaf -->
     <image.karaf.upstream.docker>quay.io/jkube/jkube-karaf:${version.image.karaf.upstream.docker}</image.karaf.upstream.docker>
     <image.karaf.upstream.s2i>quay.io/jkube/jkube-karaf:${version.image.karaf.upstream.s2i}</image.karaf.upstream.s2i>
@@ -112,7 +126,7 @@
     <image.wildfly.upstream.s2i>quay.io/wildfly/wildfly-centos7:${version.image.wildfly.upstream.s2i}</image.wildfly.upstream.s2i>
     <image.wildfly.upstream.istag>wildfly:${version.image.wildfly.upstream.s2i}</image.wildfly.upstream.istag>
 
-    <jib-core.version>0.23.0</jib-core.version>
+    <jib-core.version>0.24.0</jib-core.version>
   </properties>
 
   <dependencyManagement>
@@ -668,6 +682,14 @@
       <!-- == test ====================================== -->
 
       <dependency>
+        <groupId>io.fabric8</groupId>
+        <artifactId>kubernetes-client-api</artifactId>
+        <type>test-jar</type>
+        <version>${version.kubernetes-client}</version>
+        <scope>test</scope>
+      </dependency>
+
+      <dependency>
         <groupId>org.junit.jupiter</groupId>
         <artifactId>junit-jupiter-engine</artifactId>
         <version>${version.junit5}</version>
@@ -689,23 +711,6 @@
       </dependency>
 
       <dependency>
-        <groupId>io.fabric8</groupId>
-        <artifactId>mockwebserver</artifactId>
-        <version>${version.mockwebserver}</version>
-        <scope>test</scope>
-        <exclusions>
-          <exclusion>
-            <groupId>com.squareup.okhttp3</groupId>
-            <artifactId>okhttp</artifactId>
-          </exclusion>
-          <exclusion>
-            <groupId>com.sun</groupId>
-            <artifactId>tools</artifactId>
-          </exclusion>
-        </exclusions>
-      </dependency>
-
-      <dependency>
         <groupId>org.jmockit</groupId>
         <artifactId>jmockit</artifactId>
         <version>${version.jmockit}</version>
@@ -716,6 +721,13 @@
         <groupId>org.mockito</groupId>
         <artifactId>mockito-core</artifactId>
         <version>${version.mockito}</version>
+        <scope>test</scope>
+      </dependency>
+
+      <dependency>
+        <groupId>io.fabric8</groupId>
+        <artifactId>mockwebserver</artifactId>
+        <version>${version.kubernetes-client}</version>
         <scope>test</scope>
       </dependency>
 
@@ -840,13 +852,11 @@
         <plugin>
           <groupId>org.apache.maven.plugins</groupId>
           <artifactId>maven-enforcer-plugin</artifactId>
-          <version>${version.maven-enforcer-plugin}</version>
         </plugin>
 
         <plugin>
           <groupId>org.apache.maven.plugins</groupId>
           <artifactId>maven-failsafe-plugin</artifactId>
-          <version>${version.maven-failsafe-plugin}</version>
           <executions>
             <execution>
               <goals>
@@ -860,7 +870,6 @@
         <plugin>
           <groupId>org.apache.maven.plugins</groupId>
           <artifactId>maven-surefire-plugin</artifactId>
-          <version>${version.maven-surefire-plugin}</version>
           <configuration>
             <argLine>
               -javaagent:"${settings.localRepository}/org/jmockit/jmockit/${version.jmockit}/jmockit-${version.jmockit}.jar"
@@ -881,7 +890,6 @@
         <plugin>
           <groupId>org.asciidoctor</groupId>
           <artifactId>asciidoctor-maven-plugin</artifactId>
-          <version>${version.asciidoctor-maven-plugin}</version>
           <dependencies>
             <dependency>
               <groupId>org.asciidoctor</groupId>

@@ -1,4 +1,4 @@
-/**
+/*
  * Copyright (c) 2019 Red Hat, Inc.
  * This program and the accompanying materials are made
  * available under the terms of the Eclipse Public License 2.0
@@ -23,7 +23,6 @@ import org.eclipse.jkube.gradle.plugin.TestKubernetesExtension;
 import org.eclipse.jkube.kit.config.access.ClusterAccess;
 import org.eclipse.jkube.kit.config.service.ApplyService;
 
-import org.gradle.api.internal.provider.DefaultProperty;
 import org.gradle.api.provider.Property;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
@@ -45,7 +44,7 @@ import static org.mockito.Mockito.when;
 class KubernetesApplyTaskTest {
 
   @RegisterExtension
-  private final TaskEnvironmentExtension taskEnvironment = new TaskEnvironmentExtension();
+  public final TaskEnvironmentExtension taskEnvironment = new TaskEnvironmentExtension();
 
   private MockedConstruction<ClusterAccess> clusterAccessMockedConstruction;
   private MockedConstruction<ApplyService> applyServiceMockedConstruction;
@@ -130,7 +129,7 @@ class KubernetesApplyTaskTest {
     // Then
     assertThat(applyServiceMockedConstruction.constructed()).hasSize(1);
     verify(applyServiceMockedConstruction.constructed().iterator().next(), times(1))
-        .applyEntities(any(), eq(Collections.emptyList()), any(), eq(5L));
+        .applyEntities(any(), eq(Collections.emptyList()));
   }
 
   @Test
@@ -139,7 +138,7 @@ class KubernetesApplyTaskTest {
     extension = new TestKubernetesExtension() {
       @Override
       public Property<Boolean> getSkipApply() {
-        return new DefaultProperty<>(Boolean.class).value(true);
+        return super.getSkipApply().value(true);
       }
     };
     when(taskEnvironment.project.getExtensions().getByType(KubernetesExtension.class)).thenReturn(extension);

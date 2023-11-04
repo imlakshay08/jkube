@@ -1,4 +1,4 @@
-/**
+/*
  * Copyright (c) 2019 Red Hat, Inc.
  * This program and the accompanying materials are made
  * available under the terms of the Eclipse Public License 2.0
@@ -20,7 +20,6 @@ import java.util.Collections;
 import java.util.List;
 import java.util.stream.Stream;
 
-import io.fabric8.openshift.api.model.ParameterBuilder;
 import org.eclipse.jkube.kit.common.Maintainer;
 import org.eclipse.jkube.kit.resource.helm.HelmConfig.HelmType;
 
@@ -128,7 +127,7 @@ class HelmConfigTest {
         .hasFieldOrPropertyWithValue("stableRepository", new HelmRepository())
         .hasFieldOrPropertyWithValue("tarballOutputDir", "./tar-output")
         .hasFieldOrPropertyWithValue("parameterTemplates", Collections.singletonList(new Template()))
-        .hasFieldOrPropertyWithValue("parameters", Collections.singletonList(new ParameterBuilder().withName("key").build()))
+        .hasFieldOrPropertyWithValue("parameters", Collections.singletonList(HelmParameter.builder().name("key").build()))
         .hasFieldOrPropertyWithValue("description", "The description")
         .hasFieldOrPropertyWithValue("home", "e.t.")
         .hasFieldOrPropertyWithValue("icon", "Warhol")
@@ -141,12 +140,27 @@ class HelmConfigTest {
   }
 
   @Test
+  void canSetApiVersion() {
+    // Given
+    HelmConfig helmConfig = new HelmConfig();
+    helmConfig.setApiVersion("v2");
+
+    helmConfig.setGeneratedChartListeners(Collections.singletonList((helmConfig1, type, chartFile) -> {
+    }));
+
+    // Then
+    assertThat(helmConfig.getApiVersion()).isNotNull();
+    assertThat(helmConfig.getApiVersion()).isEqualTo("v2");
+  }
+
+  @Test
   void createHelmConfig() throws IOException {
     // Given
     File file = File.createTempFile("test", ".tmp");
     file.deleteOnExit();
 
     HelmConfig helmConfig = new HelmConfig();
+    helmConfig.setApiVersion("v2");
     helmConfig.setVersion("version");
     helmConfig.setSecurity("security");
     helmConfig.setChart("chart");
@@ -171,6 +185,7 @@ class HelmConfigTest {
     helmConfig.setGeneratedChartListeners(Arrays.asList((helmConfig1, type, chartFile) -> {
     }));
     // Then
+    assertThat(helmConfig.getApiVersion()).isEqualTo("v2");;
     assertThat(helmConfig.getVersion()).isEqualTo("version");
     assertThat(helmConfig.getSecurity()).isEqualTo("security");
     assertThat(helmConfig.getChart()).isEqualTo("chart");

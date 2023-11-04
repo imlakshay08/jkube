@@ -1,4 +1,4 @@
-/**
+/*
  * Copyright (c) 2019 Red Hat, Inc.
  * This program and the accompanying materials are made
  * available under the terms of the Eclipse Public License 2.0
@@ -21,7 +21,17 @@ import java.util.Collections;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.concurrent.atomic.AtomicReference;
+import java.util.stream.Stream;
 
+import io.fabric8.kubernetes.api.model.KubernetesResource;
+import io.fabric8.kubernetes.api.model.Pod;
+import io.fabric8.kubernetes.api.model.authorization.v1.SelfSubjectAccessReview;
+import io.fabric8.kubernetes.api.model.authorization.v1.SelfSubjectAccessReviewBuilder;
+import io.fabric8.kubernetes.api.model.runtime.RawExtension;
+import io.fabric8.kubernetes.client.KubernetesClient;
+import io.fabric8.kubernetes.client.server.mock.EnableKubernetesMockClient;
+import io.fabric8.kubernetes.client.server.mock.KubernetesMockServer;
 import org.eclipse.jkube.kit.common.KitLogger;
 
 import io.fabric8.kubernetes.api.model.ConfigMapBuilder;
@@ -51,13 +61,21 @@ import io.fabric8.openshift.api.model.Template;
 import org.eclipse.jkube.kit.common.TestHttpStaticServer;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
+import org.junit.jupiter.params.ParameterizedTest;
+import org.junit.jupiter.params.provider.Arguments;
+import org.junit.jupiter.params.provider.MethodSource;
+import org.junit.jupiter.params.provider.ValueSource;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.entry;
+import static org.eclipse.jkube.kit.common.util.KubernetesHelper.hasAccessForAction;
 
+@EnableKubernetesMockClient(crud = true)
 class KubernetesHelperTest {
 
     private KitLogger logger;
+    KubernetesMockServer mockServer;
+    KubernetesClient mockClient;
 
     @BeforeEach
     public void setUp() throws Exception {
@@ -311,14 +329,25 @@ class KubernetesHelperTest {
         assertThat(KubernetesHelper.addPort("90invalid", "", logger)).isNull();
     }
 
+    @ParameterizedTest
+    @MethodSource("controllerResources")
+    void isControllerResource_withController_returnsTrue(HasMetadata resource) {
+        assertThat(KubernetesHelper.isControllerResource(resource)).isTrue();
+    }
+
+    static Stream<Arguments> controllerResources() {
+        return Stream.of(
+            Arguments.of(new DeploymentBuilder().build()),
+            Arguments.of(new StatefulSetBuilder().build()),
+            Arguments.of(new ReplicationControllerBuilder().build()),
+            Arguments.of(new ReplicaSetBuilder().build()),
+            Arguments.of(new DeploymentConfigBuilder().build()),
+            Arguments.of(new DaemonSetBuilder().build())
+        );
+    }
+
     @Test
-    void testIsControllerResource() {
-        assertThat(KubernetesHelper.isControllerResource(new DeploymentBuilder().build())).isTrue();
-        assertThat(KubernetesHelper.isControllerResource(new StatefulSetBuilder().build())).isTrue();
-        assertThat(KubernetesHelper.isControllerResource(new ReplicationControllerBuilder().build())).isTrue();
-        assertThat(KubernetesHelper.isControllerResource(new ReplicaSetBuilder().build())).isTrue();
-        assertThat(KubernetesHelper.isControllerResource(new DeploymentConfigBuilder().build())).isTrue();
-        assertThat(KubernetesHelper.isControllerResource(new DaemonSetBuilder().build())).isTrue();
+    void isControllerResource_withNonController_returnsFalse() {
         assertThat(KubernetesHelper.isControllerResource(new ConfigMapBuilder().build())).isFalse();
     }
 
@@ -407,6 +436,50 @@ class KubernetesHelperTest {
         assertThat(result.getMatchLabels())
             .hasSize(1)
             .containsEntry("template", "label");
+    }
+
+    @ParameterizedTest
+    @ValueSource(booleans = {true, false})
+    void hasAccessForAction_whenApiServerReturnsAccessReviewWithStatus_thenReturnAllowed(boolean allowed) {
+        // Given
+        final AtomicReference<SelfSubjectAccessReview> requestedSSAR = new AtomicReference<>();
+        mockServer.expect()
+          .post()
+          .withPath("/apis/authorization.k8s.io/v1/selfsubjectaccessreviews")
+          .andReply(200, recordedRequest ->
+            new SelfSubjectAccessReviewBuilder(requestedSSAR.updateAndGet(old ->
+              Serialization.unmarshal(recordedRequest.getBody().inputStream(), SelfSubjectAccessReview.class)))
+              .withNewStatus()
+              .withAllowed(allowed)
+              .endStatus()
+              .build())
+          .always();
+        // When
+        final boolean result = hasAccessForAction(mockClient,
+          "test-ns", "example.com", "foos", "list");
+        // Then
+        assertThat(result).isEqualTo(allowed);
+        assertThat(requestedSSAR.get())
+          .hasFieldOrPropertyWithValue("spec.resourceAttributes.namespace", "test-ns")
+          .hasFieldOrPropertyWithValue("spec.resourceAttributes.group", "example.com")
+          .hasFieldOrPropertyWithValue("spec.resourceAttributes.resource", "foos")
+          .hasFieldOrPropertyWithValue("spec.resourceAttributes.verb", "list");
+    }
+
+    @ParameterizedTest(name = "{index}: {0} returns {1}")
+    @MethodSource("getKindTestCases")
+    void getKind(KubernetesResource resource, String expectedKind) {
+        assertThat(KubernetesHelper.getKind(resource)).isEqualTo(expectedKind);
+    }
+
+    static Stream<Arguments> getKindTestCases() {
+        return Stream.of(
+          Arguments.of(new Pod(), "Pod"),
+          Arguments.of(new Template(), "Template"),
+          Arguments.of(new KubernetesList(), "List"),
+          Arguments.of(new RawExtension(), "RawExtension"),
+          Arguments.of(null, null)
+        );
     }
 
     private void assertLocalFragments(File[] fragments, int expectedSize) {

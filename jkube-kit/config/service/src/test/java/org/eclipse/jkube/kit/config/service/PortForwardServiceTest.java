@@ -1,4 +1,4 @@
-/**
+/*
  * Copyright (c) 2019 Red Hat, Inc.
  * This program and the accompanying materials are made
  * available under the terms of the Eclipse Public License 2.0
@@ -11,7 +11,6 @@
  * Contributors:
  *   Red Hat, Inc. - initial API and implementation
  */
-
 package org.eclipse.jkube.kit.config.service;
 
 import java.io.Closeable;
@@ -80,7 +79,7 @@ class PortForwardServiceTest {
 
         mockServer.expect().get().withPath("/api/v1/namespaces/ns1/pods?labelSelector=mykey%3Dmyvalue").andReturn(200, pods1).always();
         mockServer.expect().get().withPath("/api/v1/namespaces/ns1/pods").andReturn(200, pods1).always();
-        mockServer.expect().get().withPath("/api/v1/namespaces/ns1/pods?labelSelector=mykey%3Dmyvalue&allowWatchBookmarks=true&watch=true")
+        mockServer.expect().get().withPath("/api/v1/namespaces/ns1/pods?allowWatchBookmarks=true&labelSelector=mykey%3Dmyvalue&watch=true")
                 .andUpgradeToWebSocket().open()
                 .waitFor(1000)
                 .andEmit(new WatchEvent(pod1, "MODIFIED"))

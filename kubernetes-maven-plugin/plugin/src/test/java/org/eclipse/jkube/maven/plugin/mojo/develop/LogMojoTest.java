@@ -1,4 +1,4 @@
-/**
+/*
  * Copyright (c) 2019 Red Hat, Inc.
  * This program and the accompanying materials are made
  * available under the terms of the Eclipse Public License 2.0
@@ -72,6 +72,7 @@ class LogMojoTest {
     logMojo = new LogMojo() { {
       project = mavenProject;
       settings = mock(Settings.class);
+      interpolateTemplateParameters = false;
       kubernetesManifest = kubernetesManifestFile;
     }};
     // @formatter:on

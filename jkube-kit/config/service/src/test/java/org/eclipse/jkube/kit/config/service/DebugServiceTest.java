@@ -1,4 +1,4 @@
-/**
+/*
  * Copyright (c) 2019 Red Hat, Inc.
  * This program and the accompanying materials are made
  * available under the terms of the Eclipse Public License 2.0
@@ -13,6 +13,8 @@
  */
 package org.eclipse.jkube.kit.config.service;
 
+import com.fasterxml.jackson.databind.JsonNode;
+import io.fabric8.kubernetes.api.model.APIGroupListBuilder;
 import io.fabric8.kubernetes.api.model.ConfigMap;
 import io.fabric8.kubernetes.api.model.LabelSelector;
 import io.fabric8.kubernetes.api.model.LabelSelectorBuilder;
@@ -34,14 +36,19 @@ import io.fabric8.kubernetes.api.model.apps.ReplicaSetSpecBuilder;
 import io.fabric8.kubernetes.client.NamespacedKubernetesClient;
 import io.fabric8.kubernetes.client.server.mock.EnableKubernetesMockClient;
 import io.fabric8.kubernetes.client.server.mock.KubernetesMockServer;
-import io.fabric8.kubernetes.client.utils.Serialization;
 import io.fabric8.openshift.api.model.DeploymentConfig;
 import io.fabric8.openshift.api.model.DeploymentConfigBuilder;
 import io.fabric8.openshift.api.model.DeploymentConfigSpecBuilder;
 import io.fabric8.openshift.client.OpenShiftClient;
+import io.fabric8.zjsonpatch.JsonPatch;
 import okhttp3.mockwebserver.RecordedRequest;
 import org.assertj.core.groups.Tuple;
+import org.eclipse.jkube.kit.common.JKubeConfiguration;
 import org.eclipse.jkube.kit.common.KitLogger;
+import org.eclipse.jkube.kit.common.util.Serialization;
+import org.eclipse.jkube.kit.config.access.ClusterAccess;
+import org.eclipse.jkube.kit.config.access.ClusterConfiguration;
+import org.eclipse.jkube.kit.config.resource.RuntimeMode;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
@@ -78,8 +85,14 @@ class DebugServiceTest {
   @BeforeEach
   void setUp() {
     logger = spy(new KitLogger.SilentLogger());
+    final JKubeServiceHub serviceHub = JKubeServiceHub.builder()
+      .log(logger)
+      .configuration(JKubeConfiguration.builder().build())
+      .platformMode(RuntimeMode.KUBERNETES)
+      .clusterAccess(new ClusterAccess(ClusterConfiguration.from(kubernetesClient.getConfiguration()).build()))
+      .build();
     singleThreadExecutor = Executors.newSingleThreadExecutor();
-    final ApplyService applyService = new ApplyService(kubernetesClient, logger);
+    final ApplyService applyService = new ApplyService(serviceHub);
     applyService.setNamespace(kubernetesClient.getNamespace());
     debugService = new DebugService(logger, kubernetesClient, new PortForwardService(logger), applyService);
   }
@@ -172,8 +185,15 @@ class DebugServiceTest {
   @Test
   void enableDebuggingWithDeploymentConfig() {
     // Given
+    mockServer.expect()
+      .get()
+      .withPath("/apis")
+      .andReturn(200, new APIGroupListBuilder()
+        .addNewGroup().withName("build.openshift.io").withApiVersion("v1").endGroup()
+        .build())
+      .always();
     final DeploymentConfig deploymentConfig = initDeploymentConfig();
-    kubernetesClient.resource(deploymentConfig).createOrReplace();
+    kubernetesClient.resource(deploymentConfig).create();
     // When
     debugService.enableDebugging(deploymentConfig, "file.name", false);
     // Then
@@ -323,10 +343,13 @@ class DebugServiceTest {
   }
 
   private Deployment withDeploymentRollout(Deployment deployment) {
-    mockServer.expect().put()
+    mockServer.expect().patch()
       .withPath("/apis/apps/v1/namespaces/test/deployments/" + deployment.getMetadata().getName())
       .andReply(200, r -> {
-        final Deployment d = Serialization.unmarshal(r.getBody().readUtf8(), Deployment.class);
+        final Deployment d = Serialization.convertValue(
+          JsonPatch.apply(Serialization.unmarshal(r.getBody().inputStream(), JsonNode.class),
+            Serialization.convertValue(deployment, JsonNode.class)),
+          Deployment.class);
         kubernetesClient.resource(new PodBuilder()
           .withMetadata(new ObjectMetaBuilder(d.getSpec().getTemplate().getMetadata())
             .withName("pod-in-debug-mode")

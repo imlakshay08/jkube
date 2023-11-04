@@ -1,4 +1,4 @@
-/**
+/*
  * Copyright (c) 2019 Red Hat, Inc.
  * This program and the accompanying materials are made
  * available under the terms of the Eclipse Public License 2.0
@@ -19,7 +19,6 @@ import io.fabric8.kubernetes.api.model.HasMetadata;
 import io.fabric8.kubernetes.client.KubernetesClient;
 import io.fabric8.kubernetes.client.KubernetesClientException;
 import org.eclipse.jkube.gradle.plugin.KubernetesExtension;
-import org.eclipse.jkube.kit.common.KitLogger;
 import org.eclipse.jkube.kit.common.util.KubernetesHelper;
 import org.eclipse.jkube.kit.common.util.OpenshiftHelper;
 import org.eclipse.jkube.kit.config.service.ApplyService;
@@ -28,7 +27,6 @@ import org.eclipse.jkube.kit.enricher.api.util.KubernetesResourceUtil;
 import java.io.File;
 import java.io.IOException;
 import java.net.URL;
-import java.util.Collection;
 import java.util.List;
 
 import static org.eclipse.jkube.kit.config.service.kubernetes.KubernetesClientUtil.resolveFallbackNamespace;
@@ -50,36 +48,34 @@ public class KubernetesApplyTask extends AbstractJKubeTask {
 
       final File manifest = getManifest(kubernetes);
       URL masterUrl = kubernetes.getMasterUrl();
+
+      final boolean isOpenShift = OpenshiftHelper.isOpenShift(kubernetes);
       KubernetesResourceUtil.validateKubernetesMasterUrl(masterUrl);
       List<HasMetadata> entities = KubernetesHelper.loadResources(manifest);
 
       configureApplyService();
 
-      kitLogger.info("Using %s at %s in namespace %s with manifest %s ", OpenshiftHelper.isOpenShift(kubernetes) ? "OpenShift" : "Kubernetes", masterUrl, applyService.getNamespace(), manifest);
+      kitLogger.info("Using %s at %s in namespace %s with manifest %s ",
+        isOpenShift ? "OpenShift" : "Kubernetes",
+        masterUrl,
+        applyService.getNamespace(),
+        manifest);
 
       // Apply rest of the entities present in manifest
-      applyEntities(manifest.getName(), entities);
+      applyService.applyEntities(manifest.getName(), entities);
       kitLogger.info("[[B]]HINT:[[B]] Use the command `%s get pods -w` to watch your pods start up",
-          clusterAccess.isOpenShift() ? "oc" : "kubectl");
+        isOpenShift ? "oc" : "kubectl");
     } catch (KubernetesClientException e) {
       KubernetesResourceUtil.handleKubernetesClientException(e, kitLogger);
     } catch (IOException ioException) {
       kitLogger.error("Error in loading Kubernetes Manifests ", ioException);
       throw new IllegalStateException(ioException);
-    } catch (InterruptedException interruptedException) {
-      Thread.currentThread().interrupt();
-      throw new IllegalStateException(interruptedException.getMessage(), interruptedException);
     }
   }
 
   @Override
   protected boolean shouldSkip() {
     return super.shouldSkip() || kubernetesExtension.getSkipApplyOrDefault();
-  }
-
-  private void applyEntities(String fileName, final Collection<HasMetadata> entities) throws InterruptedException {
-    KitLogger serviceLogger = createLogger("[[G]][SVC][[G]] [[s]]");
-    applyService.applyEntities(fileName, entities, serviceLogger, kubernetesExtension.getServiceUrlWaitTimeSecondsOrDefault());
   }
 
   protected void configureApplyService() {

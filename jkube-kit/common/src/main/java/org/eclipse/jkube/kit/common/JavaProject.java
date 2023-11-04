@@ -1,4 +1,4 @@
-/**
+/*
  * Copyright (c) 2019 Red Hat, Inc.
  * This program and the accompanying materials are made
  * available under the terms of the Eclipse Public License 2.0
@@ -21,7 +21,9 @@ import lombok.Singular;
 
 import java.io.File;
 import java.io.Serializable;
+import java.time.LocalDate;
 import java.util.List;
+import java.util.Locale;
 import java.util.Optional;
 import java.util.Properties;
 
@@ -173,6 +175,7 @@ public class JavaProject implements Serializable {
    * @return The project's documentation URL.
    */
   private String documentationUrl;
+  private LocalDate buildDate;
   /**
    * Filename (excluding the extension, and with no path information) that the produced project artifact will be called.
    *
@@ -242,13 +245,22 @@ public class JavaProject implements Serializable {
    */
   private List<Maintainer> maintainers;
 
-  @Builder
+  /**
+   * Returns true if the project is a Maven project with a snapshot version.
+   *
+   * @return true if the project is a Maven project with a snapshot version, false otherwise.
+   */
+  public boolean isSnapshot() {
+    return version != null && version.toUpperCase(Locale.ROOT).endsWith("-SNAPSHOT");
+  }
+
+  @Builder(toBuilder = true)
   public JavaProject(
       String name, String groupId, String artifactId, String version,
       File outputDirectory, File baseDirectory, File buildDirectory, File buildPackageDirectory,
       Properties properties, @Singular List<String> compileClassPathElements, @Singular List<Dependency> dependencies,
       List<Dependency> dependenciesWithTransitive, @Singular List<Plugin> plugins, @Singular List<String> gradlePlugins,
-      String site, String description, String organizationName, String documentationUrl,
+      String site, String description, String organizationName, String documentationUrl, LocalDate buildDate,
       String buildFinalName, File artifact, String packaging, String issueManagementSystem, String issueManagementUrl,
       String url, String scmUrl, String scmTag,
       @Singular List<Maintainer> maintainers) {
@@ -270,6 +282,7 @@ public class JavaProject implements Serializable {
     this.description = description;
     this.organizationName = organizationName;
     this.documentationUrl = documentationUrl;
+    this.buildDate = Optional.ofNullable(buildDate).orElse(LocalDate.now());
     this.buildFinalName = buildFinalName;
     this.artifact = artifact;
     this.packaging = packaging;

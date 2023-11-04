@@ -30,6 +30,7 @@ import io.fabric8.openshift.api.model.Template;
 import org.eclipse.jkube.kit.common.JKubeConfiguration;
 import org.eclipse.jkube.kit.common.JavaProject;
 import org.eclipse.jkube.kit.common.KitLogger;
+import org.eclipse.jkube.kit.config.resource.ResourceServiceConfig;
 import org.eclipse.jkube.kit.config.resource.RuntimeMode;
 import org.eclipse.jkube.kit.config.service.JKubeServiceHub;
 import org.eclipse.jkube.kit.resource.helm.HelmConfig;
@@ -91,10 +92,11 @@ public class Main {
     FileUtils.write(
         new File(kubernetesHelmInputDir, "kubernetes.yml"), Serialization.asYaml(klb.build()), StandardCharsets.UTF_8);
 
+    FileUtils.forceMkdir(new File(targetDir, "kubernetes"));
     final HelmConfig helmConfig = HelmConfig.builder()
         .chart(APP_NAME + "-chart")
         .version("1.33.7")
-        .templates(Collections.singletonList(values))
+        .parameterTemplates(Collections.singletonList(values))
         .sourceDir(helmSourceDir.getAbsolutePath())
         .outputDir(new File(targetDir, "helm").getAbsolutePath())
         .tarballOutputDir(targetDir.getAbsolutePath())
@@ -108,6 +110,7 @@ public class Main {
                 .build())
             .outputDirectory("target")
             .build())
+        .resourceServiceConfig(ResourceServiceConfig.builder().build())
         .platformMode(RuntimeMode.KUBERNETES)
         .log(new KitLogger.StdoutLogger())
         .build().getHelmService()

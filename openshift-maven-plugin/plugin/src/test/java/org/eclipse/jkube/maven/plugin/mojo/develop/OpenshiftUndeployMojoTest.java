@@ -1,4 +1,4 @@
-/**
+/*
  * Copyright (c) 2019 Red Hat, Inc.
  * This program and the accompanying materials are made
  * available under the terms of the Eclipse Public License 2.0
@@ -57,8 +57,7 @@ class OpenshiftUndeployMojoTest {
     // Given
     final OpenShiftClient client = mock(OpenShiftClient.class);
     when(mockServiceHub.getClient()).thenReturn(client);
-    when(client.adapt(OpenShiftClient.class)).thenReturn(client);
-    when(client.isSupported()).thenReturn(true);
+    when(client.hasApiGroup("openshift.io", false)).thenReturn(true);
     // When
     final List<File> result = undeployMojo.getManifestsToUndeploy();
     // Then

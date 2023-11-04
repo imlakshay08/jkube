@@ -138,7 +138,7 @@ a| Defines what build strategy to choose while building container image.
 Possible values are `docker` and `jib` out of which `docker` is default.
 
 ifeval::["{goal-prefix}" == "oc"]
-If the effective <<build-mode,mode>> is `openshift` an additional `s2i` option is available
+If the build is performed in an OpenShift cluster an additional `s2i` option is available
 and selected by default.
 
 Available strategies for OpenShift are:
@@ -148,11 +148,6 @@ Available strategies for OpenShift are:
 
 endif::[]
 | `jkube.build.strategy`
-
-| *apiVersion*
-| Use this variable if you are using an older version of docker not compatible with the current default use to
-  communicate with the server.
-| `jkube.docker.apiVersion`
 
  | *authConfig*
 | Authentication information when pulling from or pushing to Docker registry. There is a dedicated section
@@ -170,7 +165,7 @@ a| Decide how to pull missing base images or images to start:
 | `jkube.docker.autoPull`
 
 | *buildRecreate*
-a| If the effective <<build-mode,mode>> is `openshift` then this option decides how the OpenShift resource objects
+a| If the build is performed in an OpenShift cluster then this option decides how the OpenShift resource objects
    associated with the build should be treated when they already exist:
 
 * `buildConfig` or `bc` : Only the BuildConfig is recreated
@@ -335,95 +330,6 @@ endif::[]
 
 |===
 
-=== Kubernetes Access Configuration
-
-You can configure parameters to define how plugin is going to connect to Kubernetes cluster instead of relying on default parameters.
-
-[source,xml,indent=0,subs="verbatim,quotes,attributes"]
-----
-<configuration>
-  <access>
-    <username></username>
-    <password></password>
-    <masterUrl></masterUrl>
-    <apiVersion></apiVersion>
-  </access>
-</configuration>
-----
-
-[cols="1,5,1"]
-|===
-| Element | Description | Property
-
-| *username*
-| Username on which to operate.
-| `jkube.username`
-
-| *password*
-| Password on which to operate.
-| `jkube.password`
-
-| *namespace*
-| Namespace on which to operate.
-| `jkube.namespace`
-
-| *masterUrl*
-| Master URL on which to operate.
-| `jkube.masterUrl`
-
-| *apiVersion*
-| Api version on which to operate.
-| `jkube.apiVersion`
-
-| *caCertFile*
-| CaCert File on which to operate.
-| `jkube.caCertFile`
-
-| *caCertData*
-| CaCert Data on which to operate.
-| `jkube.caCertData`
-
-| *clientCertFile*
-| Client Cert File on which to operate.
-| `jkube.clientCertFile`
-
-| *clientCertData*
-| Client Cert Data on which to operate.
-| `jkube.clientCertData`
-
-| *clientKeyFile*
-| Client Key File on which to operate.
-| `jkube.clientKeyFile`
-
-| *clientKeyData*
-| Client Key Data on which to operate.
-| `jkube.clientKeyData`
-
-| *clientKeyAlgo*
-| Client Key Algorithm on which to operate.
-| `jkube.clientKeyAlgo`
-
-| *clientKeyPassphrase*
-| Client Key Passphrase on which to operate.
-| `jkube.clientKeyPassphrase`
-
-| *trustStoreFile*
-| Trust Store File on which to operate.
-| `jkube.trustStoreFile`
-
-| *trustStorePassphrase*
-| Trust Store Passphrase on which to operate.
-| `jkube.trustStorePassphrase`
-
-| *keyStoreFile*
-| Key Store File on which to operate.
-| `jkube.keyStoreFile`
-
-| *keyStorePassphrase*
-| Key Store Passphrase on which to operate.
-| `jkube.keyStorePassphrase`
-|===
-
 === Image Configuration
 
 The configuration how images should be created a defined in a dedicated `<images>` sections. These are specified for
@@ -435,7 +341,7 @@ include::../../image/_configuration.adoc[]
 
 The `<build>` section is mandatory and is explained in <<build-configuration, below>>.
 
-include::../../image/_naming.adoc[]
+include::{kitdoc-path}/inc/image/_naming.adoc[]
 include::../../image/_example.adoc[]
 
 include::{kitdoc-path}/inc/build/_index.adoc[]

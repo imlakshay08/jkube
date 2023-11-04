@@ -1,4 +1,4 @@
-/**
+/*
  * Copyright (c) 2019 Red Hat, Inc.
  * This program and the accompanying materials are made
  * available under the terms of the Eclipse Public License 2.0
@@ -18,6 +18,7 @@ import org.eclipse.jkube.api.JKubePlugin;
 import org.eclipse.jkube.kit.common.JKubeConfiguration;
 import org.eclipse.jkube.kit.common.KitLogger;
 import org.eclipse.jkube.kit.common.util.LazyBuilder;
+import org.eclipse.jkube.kit.config.resource.ResourceServiceConfig;
 import org.eclipse.jkube.kit.config.resource.RuntimeMode;
 import org.eclipse.jkube.kit.config.service.BuildServiceConfig;
 import org.eclipse.jkube.kit.config.service.JKubeServiceHub;
@@ -35,7 +36,8 @@ class PluginManagerTest {
   @BeforeEach
   void setUp() {
     jKubeServiceHub = new JKubeServiceHub(null, RuntimeMode.KUBERNETES, new KitLogger.StdoutLogger(),
-      null, new JKubeConfiguration(), new BuildServiceConfig(), new LazyBuilder<>(() -> null), true);
+      null, new JKubeConfiguration(), new BuildServiceConfig(), new ResourceServiceConfig(),
+      new LazyBuilder<>(hub -> null), true);
   }
 
   @Test

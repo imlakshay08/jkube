@@ -1,4 +1,4 @@
-/**
+/*
  * Copyright (c) 2019 Red Hat, Inc.
  * This program and the accompanying materials are made
  * available under the terms of the Eclipse Public License 2.0
@@ -56,7 +56,7 @@ public class PodTemplateHandler {
 
         return new PodSpecBuilder()
             .withRestartPolicy(restartPolicy)
-            .withContainers(containerHandler.getContainers(config,images))
+            .withContainers(containerHandler.getContainers(config, images))
             .withInitContainers(createNewInitContainersFromConfig(config.getInitContainers()))
             .withVolumes(getVolumes(config))
             .build();

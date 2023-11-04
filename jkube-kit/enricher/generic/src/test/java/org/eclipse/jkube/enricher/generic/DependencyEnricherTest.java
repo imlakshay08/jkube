@@ -1,4 +1,4 @@
-/**
+/*
  * Copyright (c) 2019 Red Hat, Inc.
  * This program and the accompanying materials are made
  * available under the terms of the Eclipse Public License 2.0
@@ -22,7 +22,7 @@ import org.eclipse.jkube.kit.common.KitLogger;
 import org.eclipse.jkube.kit.config.resource.PlatformMode;
 import org.eclipse.jkube.kit.enricher.api.JKubeEnricherContext;
 import org.eclipse.jkube.kit.enricher.api.model.KindAndName;
-import org.eclipse.jkube.kit.enricher.api.util.KubernetesResourceUtil;
+import org.eclipse.jkube.kit.enricher.api.util.KubernetesResourceFragments;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 
@@ -86,11 +86,7 @@ class DependencyEnricherTest {
          * Our override file also contains a ConfigMap item with name jenkins, load it while
          * loading Kubernetes resources.
          */
-        return KubernetesResourceUtil.readResourceFragmentsFrom(
-                PlatformMode.kubernetes,
-                KubernetesResourceUtil.DEFAULT_RESOURCE_VERSIONING,
-                "the-project",
-                resourceList.toArray(new File[0]));
+        return KubernetesResourceFragments.readResourceFragmentsFrom(resourceList.toArray(new File[0]));
     }
 
     private boolean checkUniqueResources(List<HasMetadata> resourceList) {

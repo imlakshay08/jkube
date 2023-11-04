@@ -1,4 +1,4 @@
-/**
+/*
  * Copyright (c) 2019 Red Hat, Inc.
  * This program and the accompanying materials are made
  * available under the terms of the Eclipse Public License 2.0
@@ -37,7 +37,7 @@ public class KubernetesHelmTask extends AbstractJKubeTask {
         logManifestNotFoundWarning(manifest);
       }
       HelmConfig helm = initHelmConfig(kubernetesExtension.getDefaultHelmType(), kubernetesExtension.javaProject,
-      kubernetesExtension.getKubernetesManifestOrDefault(), kubernetesExtension.getKubernetesTemplateOrDefault(),
+      kubernetesExtension.getKubernetesTemplateOrDefault(),
         kubernetesExtension.helm).build();
       jKubeServiceHub.getHelmService().generateHelmCharts(helm);
     } catch (IOException exception) {

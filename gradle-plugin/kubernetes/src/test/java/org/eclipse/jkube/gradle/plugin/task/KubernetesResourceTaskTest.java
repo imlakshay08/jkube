@@ -1,4 +1,4 @@
-/**
+/*
  * Copyright (c) 2019 Red Hat, Inc.
  * This program and the accompanying materials are made
  * available under the terms of the Eclipse Public License 2.0
@@ -24,7 +24,6 @@ import org.eclipse.jkube.gradle.plugin.KubernetesExtension;
 import org.eclipse.jkube.gradle.plugin.TestKubernetesExtension;
 
 import org.apache.commons.io.FileUtils;
-import org.gradle.api.internal.provider.DefaultProperty;
 import org.gradle.api.provider.Property;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
@@ -36,7 +35,7 @@ import static org.mockito.Mockito.when;
 class KubernetesResourceTaskTest {
 
   @RegisterExtension
-  private final TaskEnvironmentExtension taskEnvironment = new TaskEnvironmentExtension();
+  public final TaskEnvironmentExtension taskEnvironment = new TaskEnvironmentExtension();
 
   @BeforeEach
   void setUp() throws IOException {
@@ -74,7 +73,7 @@ class KubernetesResourceTaskTest {
     // When
     resourceTask.runTask();
     // Then
-    assertThat(taskEnvironment.getRoot().toPath().resolve("build").resolve("jkube"))
+    assertThat(taskEnvironment.getRoot().toPath().resolve("build").resolve("jkube-temp"))
         .exists()
         .satisfies(p -> assertThat(p.resolve("configmap.yml")).hasContent("key: value"))
         .satisfies(p -> assertThat(p.resolve("second-configmap.yml"))
@@ -87,7 +86,7 @@ class KubernetesResourceTaskTest {
     KubernetesExtension extension = new TestKubernetesExtension() {
       @Override
       public Property<Boolean> getSkipResource() {
-        return new DefaultProperty<>(Boolean.class).value(true);
+        return super.getSkipResource().value(true);
       }
     };
     when(taskEnvironment.project.getExtensions().getByType(KubernetesExtension.class)).thenReturn(extension);

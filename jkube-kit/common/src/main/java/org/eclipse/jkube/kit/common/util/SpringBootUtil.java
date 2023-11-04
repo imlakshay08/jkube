@@ -1,4 +1,4 @@
-/**
+/*
  * Copyright (c) 2019 Red Hat, Inc.
  * This program and the accompanying materials are made
  * available under the terms of the Eclipse Public License 2.0
@@ -13,12 +13,15 @@
  */
 package org.eclipse.jkube.kit.common.util;
 
+import java.io.File;
+import java.io.IOException;
 import java.net.URL;
 import java.net.URLClassLoader;
 import java.util.Collections;
 import java.util.Map;
 import java.util.Optional;
 import java.util.Properties;
+import java.util.jar.JarFile;
 
 import org.eclipse.jkube.kit.common.JavaProject;
 import org.eclipse.jkube.kit.common.Plugin;
@@ -29,6 +32,14 @@ import static org.eclipse.jkube.kit.common.util.PropertiesUtil.getPropertiesFrom
  * Utility methods to access spring-boot resources.
  */
 public class SpringBootUtil {
+
+    public static final String SPRING_BOOT_GROUP_ID = "org.springframework.boot";
+//    public static final String SPRING_BOOT_ARTIFACT_ID = "spring-boot";
+    public static final String SPRING_BOOT_DEVTOOLS_ARTIFACT_ID = "spring-boot-devtools";
+    public static final String SPRING_BOOT_MAVEN_PLUGIN_ARTIFACT_ID = "spring-boot-maven-plugin";
+    public static final String SPRING_BOOT_GRADLE_PLUGIN_ARTIFACT_ID = "org.springframework.boot.gradle.plugin";
+    public static final String DEV_TOOLS_REMOTE_SECRET = "spring.devtools.remote.secret";
+    public static final String DEV_TOOLS_REMOTE_SECRET_ENV = "SPRING_DEVTOOLS_REMOTE_SECRET";
 
     private SpringBootUtil() {}
 
@@ -77,11 +88,11 @@ public class SpringBootUtil {
     /**
      * Determine the spring-boot major version for the current project
      *
-     * @param mavenProject  project
+     * @param javaProject  project
      * @return spring boot version or null
      */
-    public static Optional<String> getSpringBootVersion(JavaProject mavenProject) {
-        return Optional.ofNullable(JKubeProjectUtil.getAnyDependencyVersionWithGroupId(mavenProject, SpringBootConfigurationHelper.SPRING_BOOT_GROUP_ID));
+    public static Optional<String> getSpringBootVersion(JavaProject javaProject) {
+        return Optional.ofNullable(JKubeProjectUtil.getAnyDependencyVersionWithGroupId(javaProject, SPRING_BOOT_GROUP_ID));
     }
 
     public static String getSpringBootActiveProfile(JavaProject project) {
@@ -93,15 +104,53 @@ public class SpringBootUtil {
     }
 
     public static Map<String, Object> getSpringBootPluginConfiguration(JavaProject javaProject) {
-        Plugin mavenPlugin = JKubeProjectUtil.getPlugin(javaProject, SpringBootConfigurationHelper.SPRING_BOOT_MAVEN_PLUGIN_ARTIFACT_ID);
+        Plugin mavenPlugin = JKubeProjectUtil.getPlugin(javaProject, SPRING_BOOT_MAVEN_PLUGIN_ARTIFACT_ID);
         if (mavenPlugin != null) {
             return mavenPlugin.getConfiguration();
         }
-        Plugin gradlePlugin = JKubeProjectUtil.getPlugin(javaProject, SpringBootConfigurationHelper.SPRING_BOOT_GRADLE_PLUGIN_ARTIFACT_ID);
+        Plugin gradlePlugin = JKubeProjectUtil.getPlugin(javaProject, SPRING_BOOT_GRADLE_PLUGIN_ARTIFACT_ID);
         if (gradlePlugin != null) {
             return gradlePlugin.getConfiguration();
         }
         return Collections.emptyMap();
+    }
+
+    public static boolean isSpringBootRepackage(JavaProject project) {
+        Plugin plugin = JKubeProjectUtil.getPlugin(project, SPRING_BOOT_MAVEN_PLUGIN_ARTIFACT_ID);
+        return Optional.ofNullable(plugin)
+            .map(Plugin::getExecutions)
+            .map(e -> e.contains("repackage"))
+            .orElse(false);
+    }
+
+    public static boolean isLayeredJar(File fatJar) {
+        try (JarFile jarFile = new JarFile(fatJar)) {
+            return jarFile.getEntry("BOOT-INF/layers.idx") != null;
+        } catch (IOException ioException) {
+            throw new IllegalStateException("Failure in inspecting fat jar for layers.idx file", ioException);
+        }
+    }
+
+    public static Plugin getNativePlugin(JavaProject project) {
+        Plugin plugin = JKubeProjectUtil.getPlugin(project, "org.graalvm.buildtools", "native-maven-plugin");
+        if (plugin != null) {
+            return plugin;
+        }
+        return JKubeProjectUtil.getPlugin(project, "org.graalvm.buildtools.native", "org.graalvm.buildtools.native.gradle.plugin");
+    }
+
+    public static File findNativeArtifactFile(JavaProject project) {
+        for (String location : new String[] {"", "native/nativeCompile/"}) {
+            File nativeArtifactDir = new File(project.getBuildDirectory(), location);
+            File[] nativeExecutableArtifacts = nativeArtifactDir.listFiles(f -> f.isFile() && f.canExecute());
+            if (nativeExecutableArtifacts != null && nativeExecutableArtifacts.length > 0) {
+                if (nativeExecutableArtifacts.length == 1) {
+                    return nativeExecutableArtifacts[0];
+                }
+                throw new IllegalStateException("More than one native executable file found in " + nativeArtifactDir.getAbsolutePath());
+            }
+        }
+        return null;
     }
 }
 

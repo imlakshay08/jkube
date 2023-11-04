@@ -1,4 +1,4 @@
-/**
+/*
  * Copyright (c) 2019 Red Hat, Inc.
  * This program and the accompanying materials are made
  * available under the terms of the Eclipse Public License 2.0
@@ -18,7 +18,6 @@ import java.net.URL;
 import java.util.Collection;
 import java.util.List;
 
-import org.eclipse.jkube.kit.common.KitLogger;
 import org.eclipse.jkube.kit.common.util.KubernetesHelper;
 import org.eclipse.jkube.kit.common.util.MavenUtil;
 import org.eclipse.jkube.kit.common.util.OpenshiftHelper;
@@ -120,12 +119,6 @@ public class ApplyMojo extends AbstractJKubeMojo implements ManifestProvider {
     private File jsonLogDir;
 
     /**
-     * How many seconds to wait for a URL to be generated for a service
-     */
-    @Parameter(property = "jkube.serviceUrl.waitSeconds", defaultValue = "5")
-    protected long serviceUrlWaitTimeSeconds;
-
-    /**
      * Folder where to find project specific files
      */
     @Parameter(property = "jkube.resourceDir", defaultValue = "${basedir}/src/main/jkube")
@@ -170,22 +163,22 @@ public class ApplyMojo extends AbstractJKubeMojo implements ManifestProvider {
                 }
             }
 
-            String clusterKind = "Kubernetes";
-            if (OpenshiftHelper.isOpenShift(kubernetes)) {
-                clusterKind = "OpenShift";
-            }
+            final boolean isOpenShift = OpenshiftHelper.isOpenShift(kubernetes);
             KubernetesResourceUtil.validateKubernetesMasterUrl(masterUrl);
             List<HasMetadata> entities = KubernetesHelper.loadResources(manifest);
 
             configureApplyService(kubernetes);
 
-            log.info("Using %s at %s in namespace %s with manifest %s ", clusterKind, masterUrl,
+            log.info("Using %s at %s in namespace %s with manifest %s ",
+                isOpenShift ? "OpenShift" : "Kubernetes",
+                masterUrl,
                 applyService.getNamespace(),
                 manifest);
 
             // Apply rest of the entities present in manifest
             applyEntities(kubernetes, manifest.getName(), entities);
-            log.info("[[B]]HINT:[[B]] Use the command `%s get pods -w` to watch your pods start up", clusterAccess.isOpenShift() ? "oc" : "kubectl");
+            log.info("[[B]]HINT:[[B]] Use the command `%s get pods -w` to watch your pods start up",
+              isOpenShift ? "oc" : "kubectl");
         } catch (KubernetesClientException e) {
             KubernetesResourceUtil.handleKubernetesClientException(e, this.log);
         } catch(InterruptedException ex) {
@@ -197,8 +190,7 @@ public class ApplyMojo extends AbstractJKubeMojo implements ManifestProvider {
     }
 
     protected void applyEntities(final KubernetesClient kubernetes, String fileName, final Collection<HasMetadata> entities) throws InterruptedException {
-        KitLogger serviceLogger = createLogger("[[G]][SVC][[G]] [[s]]");
-        applyService.applyEntities(fileName, entities, serviceLogger, serviceUrlWaitTimeSeconds);
+        applyService.applyEntities(fileName, entities);
     }
 
     protected void initServices(KubernetesClient kubernetes) {

@@ -1,4 +1,4 @@
-/**
+/*
  * Copyright (c) 2019 Red Hat, Inc.
  * This program and the accompanying materials are made
  * available under the terms of the Eclipse Public License 2.0
@@ -86,6 +86,10 @@ public abstract class OpenShiftExtension extends KubernetesExtension {
 
   public String getOpenshiftPullSecretOrDefault() {
     return getOrDefaultString("jkube.build.pullSecret", this::getOpenshiftPullSecret, DEFAULT_OPENSHIFT_PULLSECRET);
+  }
+
+  public String getOpenshiftPushSecretOrDefault() {
+    return getOrDefaultString("jkube.build.pushSecret", this::getOpenshiftPushSecret, null);
   }
 
   public String getS2iBuildNameSuffixOrDefault() {

@@ -1,4 +1,4 @@
-/**
+/*
  * Copyright (c) 2019 Red Hat, Inc.
  * This program and the accompanying materials are made
  * available under the terms of the Eclipse Public License 2.0
@@ -15,6 +15,9 @@ package org.eclipse.jkube.generator.api.support;
 
 import java.io.IOException;
 import java.time.LocalDateTime;
+import java.time.format.DateTimeFormatter;
+import java.time.format.DateTimeFormatterBuilder;
+import java.time.format.FormatStyle;
 import java.util.Arrays;
 import java.util.Collections;
 import java.util.HashMap;
@@ -111,6 +114,10 @@ public abstract class BaseGenerator implements Generator {
         return context;
     }
 
+    public GeneratorConfig getGeneratorConfig() {
+        return config;
+    }
+
     protected String getConfig(Configs.Config key) {
         return config.get(key);
     }
@@ -120,11 +127,7 @@ public abstract class BaseGenerator implements Generator {
     }
 
     protected String getConfigWithFallback(Config key, String fallbackPropertyKey, String defaultVal) {
-        final String value = getConfig(key, Configs.getFromSystemPropertyWithPropertiesAsFallback(getProject().getProperties(), fallbackPropertyKey));
-        if (value != null) {
-            return value;
-        }
-        return defaultVal;
+        return config.getWithFallback(key, fallbackPropertyKey, defaultVal);
     }
 
     // Get 'from' as configured without any default and image stream tag handling
@@ -157,8 +160,8 @@ public abstract class BaseGenerator implements Generator {
                     tag = "latest";
                 }
                 fromExt.put(JKubeBuildStrategy.SourceStrategy.name.key(), iName.getSimpleName() + ":" + tag);
-                if (iName.getUser() != null) {
-                    fromExt.put(JKubeBuildStrategy.SourceStrategy.namespace.key(), iName.getUser());
+                if (iName.inferUser() != null) {
+                    fromExt.put(JKubeBuildStrategy.SourceStrategy.namespace.key(), iName.inferUser());
                 }
                 fromExt.put(JKubeBuildStrategy.SourceStrategy.kind.key(), "ImageStreamTag");
             } else {
@@ -256,7 +259,7 @@ public abstract class BaseGenerator implements Generator {
         String docURL = project.getDocumentationUrl();
         Map<String, String> labels = new HashMap<>();
 
-        labels.put(BuildLabelAnnotations.BUILD_DATE.value(), LocalDateTime.now().toString());
+        labels.put(BuildLabelAnnotations.BUILD_DATE.value(), getProject().getBuildDate().format(DateTimeFormatter.ISO_DATE));
         labels.put(BuildLabelAnnotations.NAME.value(), project.getName());
         labels.put(BuildLabelAnnotations.DESCRIPTION.value(), project.getDescription());
         if (docURL != null) {

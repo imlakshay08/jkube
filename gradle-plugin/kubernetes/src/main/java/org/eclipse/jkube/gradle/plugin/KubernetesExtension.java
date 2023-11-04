@@ -1,4 +1,4 @@
-/**
+/*
  * Copyright (c) 2019 Red Hat, Inc.
  * This program and the accompanying materials are made
  * available under the terms of the Eclipse Public License 2.0
@@ -117,7 +117,7 @@ public abstract class KubernetesExtension {
   private static final Path DEFAULT_JSON_LOG_DIR = Paths.get("jkube","applyJson");
   private static final Path DEFAULT_RESOURCE_SOURCE_DIR = Paths.get("src", "main", "jkube");
   private static final Path DEFAULT_RESOURCE_TARGET_DIR = Paths.get("META-INF", "jkube");
-  private static final Path DEFAULT_WORK_DIR = Paths.get("jkube");
+  private static final Path DEFAULT_WORK_DIR = Paths.get("jkube-temp");
 
   public transient JavaProject javaProject;
 
@@ -140,8 +140,6 @@ public abstract class KubernetesExtension {
   public abstract Property<String> getDockerHost();
 
   public abstract Property<String> getCertPath();
-
-  public abstract Property<String> getMinimalApiVersion();
 
   public abstract Property<Boolean> getSkipMachine();
 
@@ -533,10 +531,6 @@ public abstract class KubernetesExtension {
     return getOrDefaultBoolean("jkube.rolling", this::getRollingUpgrades, false);
   }
 
-  public Integer getServiceUrlWaitTimeSecondsOrDefault() {
-    return getOrDefaultInteger("jkube.serviceUrl.waitSeconds", this::getServiceUrlWaitTimeSeconds, 5);
-  }
-
   public File getKubernetesManifestOrDefault() {
     return getOrDefaultFile("jkube.kubernetesManifest", this::getKubernetesManifest, javaProject.getOutputDirectory().toPath().resolve(DEFAULT_KUBERNETES_MANIFEST).toFile());
   }
@@ -585,10 +579,6 @@ public abstract class KubernetesExtension {
     return getOrDefaultString("jkube.image.filter", this::getFilter, null);
   }
 
-  public String getApiVersionOrNull() {
-    return getOrDefaultString("jkube.docker.apiVersion", this::getApiVersion, null);
-  }
-
   public String getImagePullPolicyOrNull() {
     return getOrDefaultString("jkube.docker.imagePullPolicy", this::getImagePullPolicy, null);
   }
@@ -614,7 +604,7 @@ public abstract class KubernetesExtension {
   }
 
   public String getRegistryOrDefault() {
-    return getOrDefaultString("jkube.docker.registry", this::getRegistry, "docker.io");
+    return getOrDefaultString("jkube.docker.registry", this::getRegistry, null);
   }
 
   public String getBuildRecreateOrDefault() {

@@ -1,4 +1,4 @@
-/**
+/*
  * Copyright (c) 2019 Red Hat, Inc.
  * This program and the accompanying materials are made
  * available under the terms of the Eclipse Public License 2.0
@@ -145,7 +145,9 @@ class QuarkusGeneratorTest {
         // When
         final List<ImageConfiguration> result = new QuarkusGenerator(ctx).customize(new ArrayList<>(), true);
         // Then
-        assertBuildFrom(result, "quarkus/s2i");
+        assertThat(result).singleElement()
+          .extracting("buildConfiguration.from")
+          .isEqualTo("quarkus/s2i");
       }
     }
 
@@ -159,7 +161,9 @@ class QuarkusGeneratorTest {
         // When
         final List<ImageConfiguration> result = new QuarkusGenerator(ctx).customize(new ArrayList<>(), true);
         // Then
-        assertBuildFrom(result, "quarkus/docker");
+        assertThat(result).singleElement()
+          .extracting("buildConfiguration.from")
+          .isEqualTo("quarkus/docker");
       }
     }
 
@@ -170,9 +174,11 @@ class QuarkusGeneratorTest {
       in(RuntimeMode.OPENSHIFT);
       withNativeBinaryInTarget();
       // When
-      final List<ImageConfiguration> resultImages = new QuarkusGenerator(ctx).customize(new ArrayList<>(), true);
+      final List<ImageConfiguration> result = new QuarkusGenerator(ctx).customize(new ArrayList<>(), true);
       // Then
-      assertBuildFrom(resultImages, "quay.io/quarkus/ubi-quarkus-native-binary-s2i:1.0");
+      assertThat(result).singleElement()
+        .extracting("buildConfiguration.from")
+        .isEqualTo("quay.io/quarkus/ubi-quarkus-native-binary-s2i:1.0");
     }
 
     @Test
@@ -182,9 +188,41 @@ class QuarkusGeneratorTest {
       in(RuntimeMode.KUBERNETES);
       withNativeBinaryInTarget();
       // When
+      final List<ImageConfiguration> result = new QuarkusGenerator(ctx).customize(new ArrayList<>(), true);
+      // Then
+      assertThat(result).singleElement()
+        .extracting("buildConfiguration.from").asString()
+        .startsWith("registry.access.redhat.com/ubi8/ubi-minimal:");
+    }
+
+    @Test
+    @DisplayName("in Kubernetes with native artifact, should disable Jolokia")
+    void customize_inKubernetes_shouldDisableJolokia() throws IOException {
+      // Given
+      in(RuntimeMode.KUBERNETES);
+      withNativeBinaryInTarget();
+      // When
       final List<ImageConfiguration> resultImages = new QuarkusGenerator(ctx).customize(new ArrayList<>(), true);
       // Then
-      assertBuildFrom(resultImages, "registry.access.redhat.com/ubi8/ubi-minimal:8.6");
+      assertThat(resultImages).singleElement()
+        .extracting("buildConfiguration.env")
+        .asInstanceOf(InstanceOfAssertFactories.map(String.class, String.class))
+        .containsEntry("AB_JOLOKIA_OFF", "true");
+    }
+
+    @Test
+    @DisplayName("in Kubernetes with native artifact, should disable Prometheus")
+    void customize_inKubernetes_shouldDisablePrometheus() throws IOException {
+      // Given
+      in(RuntimeMode.KUBERNETES);
+      withNativeBinaryInTarget();
+      // When
+      final List<ImageConfiguration> resultImages = new QuarkusGenerator(ctx).customize(new ArrayList<>(), true);
+      // Then
+      assertThat(resultImages).singleElement()
+        .extracting("buildConfiguration.env")
+        .asInstanceOf(InstanceOfAssertFactories.map(String.class, String.class))
+        .containsEntry("AB_PROMETHEUS_OFF", "true");
     }
 
     @Test
@@ -193,9 +231,11 @@ class QuarkusGeneratorTest {
       // Given
       config.getConfig().put("quarkus", Collections.singletonMap("from", BASE_JAVA_IMAGE));
       // When
-      List<ImageConfiguration> resultImages = new QuarkusGenerator(ctx).customize(new ArrayList<>(), true);
+      List<ImageConfiguration> result = new QuarkusGenerator(ctx).customize(new ArrayList<>(), true);
       // Then
-      assertBuildFrom(resultImages, BASE_JAVA_IMAGE);
+      assertThat(result).singleElement()
+        .extracting("buildConfiguration.from")
+        .isEqualTo(BASE_JAVA_IMAGE);
     }
 
     @Test
@@ -205,9 +245,11 @@ class QuarkusGeneratorTest {
       config.getConfig().put("quarkus", Collections.singletonMap("from", BASE_NATIVE_IMAGE));
       withNativeBinaryInTarget();
       // When
-      List<ImageConfiguration> resultImages = new QuarkusGenerator(ctx).customize(new ArrayList<>(), true);
+      List<ImageConfiguration> result = new QuarkusGenerator(ctx).customize(new ArrayList<>(), true);
       // Then
-      assertBuildFrom(resultImages, BASE_NATIVE_IMAGE);
+      assertThat(result).singleElement()
+        .extracting("buildConfiguration.from")
+        .isEqualTo(BASE_NATIVE_IMAGE);
     }
 
     @Test
@@ -216,9 +258,11 @@ class QuarkusGeneratorTest {
       // Given
       projectProps.put("jkube.generator.quarkus.from", BASE_JAVA_IMAGE);
       // When
-      List<ImageConfiguration> resultImages = new QuarkusGenerator(ctx).customize(new ArrayList<>(), true);
+      List<ImageConfiguration> result = new QuarkusGenerator(ctx).customize(new ArrayList<>(), true);
       // Then
-      assertBuildFrom(resultImages, BASE_JAVA_IMAGE);
+      assertThat(result).singleElement()
+        .extracting("buildConfiguration.from")
+        .isEqualTo(BASE_JAVA_IMAGE);
     }
 
     @Test
@@ -227,9 +271,11 @@ class QuarkusGeneratorTest {
       projectProps.put("jkube.generator.quarkus.from", BASE_NATIVE_IMAGE);
       withNativeBinaryInTarget();
       // When
-      List<ImageConfiguration> resultImages = new QuarkusGenerator(ctx).customize(new ArrayList<>(), true);
+      List<ImageConfiguration> result = new QuarkusGenerator(ctx).customize(new ArrayList<>(), true);
       // Then
-      assertBuildFrom(resultImages, BASE_NATIVE_IMAGE);
+      assertThat(result).singleElement()
+        .extracting("buildConfiguration.from")
+        .isEqualTo(BASE_NATIVE_IMAGE);
     }
   }
 
@@ -450,14 +496,6 @@ class QuarkusGeneratorTest {
         .isThrownBy(() -> qg.customize(configs, false))
         .withMessageContaining("The quarkus-app directory required in Quarkus Fast Jar mode was not found");
     }
-  }
-
-  private void assertBuildFrom (List<ImageConfiguration> resultImages, String baseImage) {
-    assertThat(resultImages)
-        .isNotNull()
-        .hasSize(1)
-        .extracting("buildConfiguration.from")
-        .containsExactly(baseImage);
   }
 
   private void withNativeBinaryInTarget() throws IOException {

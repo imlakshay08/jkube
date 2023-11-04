@@ -1,4 +1,4 @@
-/**
+/*
  * Copyright (c) 2019 Red Hat, Inc.
  * This program and the accompanying materials are made
  * available under the terms of the Eclipse Public License 2.0
@@ -27,7 +27,6 @@ import org.eclipse.jkube.kit.build.service.docker.watch.WatchContext;
 import org.eclipse.jkube.kit.build.service.docker.watch.WatchException;
 import org.eclipse.jkube.kit.common.util.KubernetesHelper;
 import org.eclipse.jkube.kit.common.util.OpenshiftHelper;
-import org.eclipse.jkube.kit.config.access.ClusterAccess;
 import org.eclipse.jkube.kit.config.image.ImageConfiguration;
 import org.eclipse.jkube.kit.config.resource.PlatformMode;
 import org.eclipse.jkube.watcher.api.BaseWatcher;
@@ -140,14 +139,10 @@ public class DockerImageWatcher extends BaseWatcher {
     protected void restartContainer(WatchService.ImageWatcher watcher, Collection<HasMetadata> resources) {
         ImageConfiguration imageConfig = watcher.getImageConfiguration();
         String imageName = imageConfig.getName();
-        ClusterAccess clusterAccess = getContext().getJKubeServiceHub().getClusterAccess();
-        try (KubernetesClient client = clusterAccess.createDefaultClient()) {
-
-            String namespace = clusterAccess.getNamespace();
-
-            String imagePrefix = getImagePrefix(imageName);
+        final KubernetesClient client = getContext().getJKubeServiceHub().getClient();
+        try {
             for (HasMetadata entity : resources) {
-                updateImageName(client, namespace, entity, imagePrefix, imageName);
+                updateImageName(client, entity, getImagePrefix(imageName), imageName);
             }
         } catch (KubernetesClientException e) {
             KubernetesHelper.handleKubernetesClientException(e, this.log);
@@ -158,8 +153,9 @@ public class DockerImageWatcher extends BaseWatcher {
         }
     }
 
-    private void updateImageName(KubernetesClient kubernetes, String namespace, HasMetadata entity, String imagePrefix, String imageName) {
+    private void updateImageName(KubernetesClient kubernetes, HasMetadata entity, String imagePrefix, String imageName) {
         String name = KubernetesHelper.getName(entity);
+        final String namespace = getContext().getNamespace();
         if (entity instanceof Deployment) {
             Deployment resource = (Deployment) entity;
             DeploymentSpec spec = resource.getSpec();
@@ -196,9 +192,8 @@ public class DockerImageWatcher extends BaseWatcher {
     }
 
     private String executeCommandInPod(String command, Collection<HasMetadata> resources) throws IOException, WatchException {
-        ClusterAccess clusterAccess = getContext().getJKubeServiceHub().getClusterAccess();
         try {
-            final PodExecutor podExecutor = new PodExecutor(clusterAccess, WAIT_TIMEOUT);
+            final PodExecutor podExecutor = new PodExecutor(getContext(), WAIT_TIMEOUT);
             podExecutor.executeCommandInPod(resources, command);
             return podExecutor.getOutput();
         } catch(InterruptedException exception) {
@@ -209,8 +204,7 @@ public class DockerImageWatcher extends BaseWatcher {
     }
 
     private void copyFileToPod(File fileToUpload, Collection<HasMetadata> resources) throws WatchException {
-        ClusterAccess clusterAccess = getContext().getJKubeServiceHub().getClusterAccess();
-        final PodExecutor podExecutor = new PodExecutor(clusterAccess, WAIT_TIMEOUT);
+        final PodExecutor podExecutor = new PodExecutor(getContext(), WAIT_TIMEOUT);
         podExecutor.uploadChangedFilesToPod(resources, fileToUpload);
     }
 

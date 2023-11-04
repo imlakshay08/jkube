@@ -1,4 +1,4 @@
-/**
+/*
  * Copyright (c) 2019 Red Hat, Inc.
  * This program and the accompanying materials are made
  * available under the terms of the Eclipse Public License 2.0
@@ -24,6 +24,7 @@ import java.util.Objects;
 import java.util.Optional;
 import java.util.function.Consumer;
 import java.util.function.UnaryOperator;
+import java.util.regex.Pattern;
 import java.util.stream.Collectors;
 import java.util.stream.Stream;
 
@@ -37,20 +38,24 @@ import org.eclipse.jkube.kit.common.archive.JKubeTarArchiver;
 import org.eclipse.jkube.kit.common.util.FileUtil;
 import org.eclipse.jkube.kit.common.util.KubernetesHelper;
 import org.eclipse.jkube.kit.common.util.ResourceUtil;
-import org.eclipse.jkube.kit.enricher.api.util.KubernetesResourceUtil;
+import org.eclipse.jkube.kit.common.util.Serialization;
+import org.eclipse.jkube.kit.config.resource.ResourceServiceConfig;
+import org.eclipse.jkube.kit.enricher.api.util.KubernetesResourceFragments;
 
-import com.google.common.collect.Streams;
 import io.fabric8.kubernetes.api.model.HasMetadata;
 import io.fabric8.kubernetes.api.model.KubernetesResource;
-import io.fabric8.openshift.api.model.Parameter;
 import io.fabric8.openshift.api.model.Template;
 import org.apache.commons.compress.archivers.tar.TarArchiveEntry;
 import org.apache.commons.io.FileUtils;
 import org.apache.commons.lang3.StringUtils;
 
+
 import static org.apache.commons.lang3.StringUtils.EMPTY;
+import static org.eclipse.jkube.kit.common.JKubeFileInterpolator.DEFAULT_FILTER;
+import static org.eclipse.jkube.kit.common.JKubeFileInterpolator.interpolate;
 import static org.eclipse.jkube.kit.common.util.MapUtil.getNestedMap;
 import static org.eclipse.jkube.kit.common.util.TemplateUtil.escapeYamlTemplate;
+import static org.eclipse.jkube.kit.common.util.YamlUtil.listYamls;
 import static org.eclipse.jkube.kit.resource.helm.HelmServiceUtil.isRepositoryValid;
 import static org.eclipse.jkube.kit.resource.helm.HelmServiceUtil.selectHelmRepository;
 import static org.eclipse.jkube.kit.resource.helm.HelmServiceUtil.setAuthentication;
@@ -58,16 +63,22 @@ import static org.eclipse.jkube.kit.resource.helm.HelmServiceUtil.setAuthenticat
 public class HelmService {
 
   private static final String YAML_EXTENSION = ".yaml";
-  private static final String CHART_API_VERSION = "v1";
-  private static final String CHART_FILENAME = "Chart" + YAML_EXTENSION;
+  public static final String CHART_FILENAME = "Chart" + YAML_EXTENSION;
   private static final String VALUES_FILENAME = "values" + YAML_EXTENSION;
-  private static final String GOLANG_EXPRESSION_REGEX = "\\{\\{.+}}";
+
+  private static final String CHART_FRAGMENT_REGEX = "^chart\\.helm\\.(?<ext>yaml|yml|json)$";
+  public static final Pattern CHART_FRAGMENT_PATTERN = Pattern.compile(CHART_FRAGMENT_REGEX, Pattern.CASE_INSENSITIVE);
+
+  private static final String VALUES_FRAGMENT_REGEX = "^values\\.helm\\.(?<ext>yaml|yml|json)$";
+  public static final Pattern VALUES_FRAGMENT_PATTERN = Pattern.compile(VALUES_FRAGMENT_REGEX, Pattern.CASE_INSENSITIVE);
 
   private final JKubeConfiguration jKubeConfiguration;
+  private final ResourceServiceConfig resourceServiceConfig;
   private final KitLogger logger;
 
-  public HelmService(JKubeConfiguration jKubeConfiguration, KitLogger logger) {
+  public HelmService(JKubeConfiguration jKubeConfiguration, ResourceServiceConfig resourceServiceConfig, KitLogger logger) {
     this.jKubeConfiguration = jKubeConfiguration;
+    this.resourceServiceConfig = resourceServiceConfig;
     this.logger = logger;
   }
 
@@ -147,8 +158,8 @@ public class HelmService {
   private void uploadHelmChart(HelmConfig helmConfig, HelmRepository helmRepository)
       throws IOException, BadUploadException {
 
+    final HelmUploaderManager helmUploaderManager = new HelmUploaderManager();
     for (HelmConfig.HelmType helmType : helmConfig.getTypes()) {
-      final HelmUploader helmUploader = new HelmUploader(logger);
       logger.info("Uploading Helm Chart \"%s\" to %s", helmConfig.getChart(), helmRepository.getName());
       logger.debug("OutputDir: %s", helmConfig.getOutputDir());
 
@@ -158,7 +169,8 @@ public class HelmService {
       final File tarballFile = new File(tarballOutputDir, String.format("%s-%s%s.%s",
           helmConfig.getChart(), helmConfig.getVersion(), resolveHelmClassifier(helmConfig), helmConfig.getChartExtension()));
 
-      helmUploader.uploadSingle(tarballFile, helmRepository);
+      helmUploaderManager.getHelmUploader(helmRepository.getType()).uploadSingle(tarballFile, helmRepository);
+      logger.info("Upload Successful");
     }
   }
 
@@ -189,16 +201,6 @@ public class HelmService {
     return outputDir;
   }
 
-  public static boolean isYaml(File file) {
-    return file.getName().toLowerCase().matches(".*?\\.ya?ml$");
-  }
-
-  public static List<File> listYamls(File directory) {
-    return Stream.of(Optional.ofNullable(directory.listFiles()).orElse(new File[0]))
-        .filter(File::isFile)
-        .filter(HelmService::isYaml)
-        .collect(Collectors.toList());
-  }
 
   public static boolean containsYamlFiles(File directory) {
     return !listYamls(directory).isEmpty();
@@ -206,7 +208,7 @@ public class HelmService {
 
   private static void processSourceFiles(File sourceDir, File templatesDir) throws IOException {
     for (File file : listYamls(sourceDir)) {
-      final KubernetesResource dto = ResourceUtil.load(file, KubernetesResource.class);
+      final KubernetesResource dto = Serialization.unmarshal(file);
       if (dto instanceof Template) {
         splitAndSaveTemplate((Template) dto, templatesDir);
       } else {
@@ -222,29 +224,62 @@ public class HelmService {
 
   private static void splitAndSaveTemplate(Template template, File templatesDir) throws IOException {
     for (HasMetadata object : Optional.ofNullable(template.getObjects()).orElse(Collections.emptyList())) {
-      String name = KubernetesResourceUtil.getNameWithSuffix(KubernetesHelper.getName(object),
+      String name = KubernetesResourceFragments.getNameWithSuffix(KubernetesHelper.getName(object),
           KubernetesHelper.getKind(object)) + YAML_EXTENSION;
       File outFile = new File(templatesDir, name);
       ResourceUtil.save(outFile, object);
     }
   }
 
-  static void createChartYaml(HelmConfig helmConfig, File outputDir) throws IOException {
-    final Chart chart = new Chart();
-    chart.setApiVersion(CHART_API_VERSION);
-    chart.setName(helmConfig.getChart());
-    chart.setVersion(helmConfig.getVersion());
-    chart.setDescription(helmConfig.getDescription());
-    chart.setHome(helmConfig.getHome());
-    chart.setSources(helmConfig.getSources());
-    chart.setMaintainers(helmConfig.getMaintainers());
-    chart.setIcon(helmConfig.getIcon());
-    chart.setKeywords(helmConfig.getKeywords());
-    chart.setEngine(helmConfig.getEngine());
-    chart.setDependencies(helmConfig.getDependencies());
+  private void createChartYaml(HelmConfig helmConfig, File outputDir) throws IOException {
+    final Chart chartFromHelmConfig = chartFromHelmConfig(helmConfig);
+    final Chart chartFromFragment = readFragment(CHART_FRAGMENT_PATTERN, Chart.class);
+    final Chart mergedChart = Serialization.merge(chartFromHelmConfig, chartFromFragment);
+    ResourceUtil.save(new File(outputDir, CHART_FILENAME), mergedChart, ResourceFileType.yaml);
+  }
 
-    File outputChartFile = new File(outputDir, CHART_FILENAME);
-    ResourceUtil.save(outputChartFile, chart, ResourceFileType.yaml);
+  private static Chart chartFromHelmConfig(HelmConfig helmConfig) {
+    return Chart.builder()
+      .apiVersion(helmConfig.getApiVersion())
+      .name(helmConfig.getChart())
+      .version(helmConfig.getVersion())
+      .description(helmConfig.getDescription())
+      .home(helmConfig.getHome())
+      .sources(helmConfig.getSources())
+      .maintainers(helmConfig.getMaintainers())
+      .icon(helmConfig.getIcon())
+      .keywords(helmConfig.getKeywords())
+      .engine(helmConfig.getEngine())
+      .dependencies(helmConfig.getDependencies())
+      .build();
+  }
+
+  private <T> T readFragment(Pattern filePattern, Class<T> type) {
+    final File helmChartFragment = resolveHelmFragment(filePattern, resourceServiceConfig);
+    if (helmChartFragment != null) {
+      try {
+        return Serialization.unmarshal(
+          interpolate(helmChartFragment, jKubeConfiguration.getProperties(), DEFAULT_FILTER), type);
+      } catch (Exception e) {
+        throw new IllegalArgumentException("Failure in parsing Helm fragment (" + helmChartFragment.getName() + "): " + e.getMessage(), e);
+      }
+    }
+    return null;
+  }
+
+  private static File resolveHelmFragment(Pattern filePattern, ResourceServiceConfig resourceServiceConfig) {
+    final List<File> fragmentDirs = resourceServiceConfig.getResourceDirs();
+    if (fragmentDirs != null) {
+      for (File fragmentDir : fragmentDirs) {
+        if (fragmentDir.exists() && fragmentDir.isDirectory()) {
+          final File[] fragments = fragmentDir.listFiles((dir, name) -> filePattern.matcher(name).matches());
+          if (fragments != null) {
+            return Stream.of(fragments).filter(File::exists).findAny().orElse(null);
+          }
+        }
+      }
+    }
+    return null;
   }
 
   private static void copyAdditionalFiles(HelmConfig helmConfig, File outputDir) throws IOException {
@@ -254,33 +289,18 @@ public class HelmService {
   }
 
   private static String interpolateTemplateWithHelmParameter(String template, HelmParameter parameter) {
-    String name = parameter.getParameter().getName();
+    final String name = parameter.getName();
     final String from = "$" + name;
     final String braceEnclosedFrom = "${" + name + "}";
     final String quotedBraceEnclosedFrom = "\"" + braceEnclosedFrom + "\"";
     String answer = template;
-    final String to = expression(parameter);
+    final String to = parameter.toExpression();
     answer = answer.replace(quotedBraceEnclosedFrom, to);
     answer = answer.replace(braceEnclosedFrom, to);
     answer = answer.replace(from, to);
     return answer;
   }
 
-  private static String expression(HelmParameter parameter) {
-    final String value = Optional.ofNullable(parameter.getParameter().getValue()).map(StringUtils::trimToEmpty).orElse("");
-    if (value.matches(GOLANG_EXPRESSION_REGEX)) {
-      return value;
-    }
-    String defaultExpression = "";
-    String required = "";
-    if (StringUtils.isNotBlank(value)) {
-      defaultExpression = " | default \"" + value + "\"";
-    }
-    if (Boolean.TRUE.equals(parameter.getParameter().getRequired())) {
-      required = "required \"A valid .Values." + parameter.getHelmName() + " entry required!\" ";
-    }
-    return "{{ " + required + ".Values." + parameter.getHelmName() + defaultExpression + " }}";
-  }
 
   private static void interpolateTemplateParameterExpressionsWithHelmExpressions(File file, List<HelmParameter> helmParameters) throws IOException {
     final String originalTemplate = FileUtils.readFileToString(file, Charset.defaultCharset());
@@ -301,27 +321,31 @@ public class HelmService {
     }
   }
 
-  private static void createValuesYaml(List<HelmParameter> helmParameters, File outputDir) throws IOException {
-    final Map<String, String> values = helmParameters.stream()
-        .filter(hp -> hp.getParameter().getValue() != null)
+  private void createValuesYaml(List<HelmParameter> helmParameters, File outputDir) throws IOException {
+    final Map<String, Object> valuesFromParameters = helmParameters.stream()
+        .filter(hp -> hp.getValue() != null)
         // Placeholders replaced by Go expressions don't need to be persisted in the values.yaml file
-        .filter(hp -> !hp.getParameter().getValue().trim().matches(GOLANG_EXPRESSION_REGEX))
-        .collect(Collectors.toMap(HelmParameter::getHelmName, hp -> hp.getParameter().getValue()));
-
-    File outputChartFile = new File(outputDir, VALUES_FILENAME);
-    ResourceUtil.save(outputChartFile, getNestedMap(values), ResourceFileType.yaml);
+        .filter(hp -> !hp.isGolangExpression())
+        .collect(Collectors.toMap(HelmParameter::getName, HelmParameter::getValue));
+    final Map<String, Object> valuesFromFragment = readFragment(VALUES_FRAGMENT_PATTERN, Map.class);
+    final Map<String, Object> mergedValues = Serialization.merge(getNestedMap(valuesFromParameters), valuesFromFragment);
+    ResourceUtil.save(new File(outputDir, VALUES_FILENAME), mergedValues, ResourceFileType.yaml);
   }
 
   private static List<HelmParameter> collectParameters(HelmConfig helmConfig) {
     final List<HelmParameter> parameters = new ArrayList<>();
-    final Stream<Parameter> fromYaml = Optional.ofNullable(helmConfig.getParameterTemplates())
-        .orElse(Collections.emptyList()).stream()
-        .map(Template::getParameters).flatMap(List::stream);
-    final Stream<Parameter> fromConfig = Optional.ofNullable(helmConfig.getParameters())
-        .orElse(Collections.emptyList()).stream();
-    Streams.concat(fromYaml, fromConfig).map(HelmParameter::new).forEach(parameters::add);
-    parameters.stream().filter(p -> p.getParameter().getName() == null).findAny().ifPresent(p -> {
-      throw new IllegalArgumentException("Helm parameters must be declared with a valid name: " + p.getParameter().toString());
+    if (helmConfig.getParameterTemplates() != null) {
+      helmConfig.getParameterTemplates().stream()
+          .map(Template::getParameters).flatMap(List::stream)
+          .map(p -> HelmParameter.builder()
+            .name(p.getName()).required(Boolean.TRUE.equals(p.getRequired())).value(p.getValue()).build())
+          .forEach(parameters::add);
+    }
+    if (helmConfig.getParameters() != null && !helmConfig.getParameters().isEmpty()) {
+      parameters.addAll(helmConfig.getParameters());
+    }
+    parameters.stream().filter(p -> p.getName() == null).findAny().ifPresent(p -> {
+      throw new IllegalArgumentException("Helm parameters must be declared with a valid name: " + p);
     });
     return parameters;
   }

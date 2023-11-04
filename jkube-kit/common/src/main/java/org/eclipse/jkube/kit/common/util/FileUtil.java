@@ -1,4 +1,4 @@
-/**
+/*
  * Copyright (c) 2019 Red Hat, Inc.
  * This program and the accompanying materials are made
  * available under the terms of the Eclipse Public License 2.0
@@ -36,6 +36,7 @@ import java.util.Objects;
 import java.util.stream.Collectors;
 import java.util.stream.Stream;
 
+import static java.nio.file.StandardCopyOption.COPY_ATTRIBUTES;
 import static java.nio.file.StandardCopyOption.REPLACE_EXISTING;
 
 /**
@@ -201,7 +202,7 @@ public class FileUtil {
     }
 
     public static void copy(Path sourcePath, Path targetPath) throws IOException {
-        Files.copy(sourcePath, targetPath, REPLACE_EXISTING);
+        Files.copy(sourcePath, targetPath, REPLACE_EXISTING, COPY_ATTRIBUTES);
     }
 
     public static void copyDirectoryIfNotExists(File sourceDir, File targetDir) throws IOException {

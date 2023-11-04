@@ -1,4 +1,4 @@
-/**
+/*
  * Copyright (c) 2019 Red Hat, Inc.
  * This program and the accompanying materials are made
  * available under the terms of the Eclipse Public License 2.0
@@ -13,7 +13,9 @@
  */
 package org.eclipse.jkube.gradle.plugin.tests;
 
+import java.io.File;
 import java.io.IOException;
+import java.nio.file.Files;
 
 import org.eclipse.jkube.kit.common.ResourceVerify;
 
@@ -26,7 +28,30 @@ import static org.assertj.core.api.AssertionsForClassTypes.assertThat;
 
 class SpringBootIT {
   @RegisterExtension
-  private final ITGradleRunnerExtension gradleRunner = new ITGradleRunnerExtension();
+  protected final ITGradleRunnerExtension gradleRunner = new ITGradleRunnerExtension();
+
+  @Test
+  void k8sBuild_whenRunWithJibBuildStrategy_generatesLayeredImage() throws IOException {
+    // When
+    final BuildResult result = gradleRunner.withITProject("spring-boot")
+      .withArguments("clean", "build", "k8sBuild", "-Pjkube.build.strategy=jib", "--stacktrace")
+      .build();
+    // Then
+    final File dockerFile = gradleRunner.resolveFile("build", "docker", "gradle", "spring-boot", "latest", "build", "Dockerfile");
+    assertThat(new String(Files.readAllBytes(dockerFile.toPath())))
+      .contains("FROM quay.io/jkube/jkube-java:")
+      .contains("ENV JAVA_MAIN_CLASS=org.springframework.boot.loader.JarLauncher JAVA_APP_DIR=/deployments")
+      .contains("EXPOSE 8080 8778 9779")
+      .contains("COPY /dependencies/deployments /deployments/")
+      .contains("COPY /spring-boot-loader/deployments /deployments/")
+      .contains("COPY /application/deployments /deployments/")
+      .contains("WORKDIR /deployments")
+      .contains("ENTRYPOINT [\"java\",\"org.springframework.boot.loader.JarLauncher\"]");
+    assertThat(result).extracting(BuildResult::getOutput).asString()
+      .contains("Running generator spring-boot")
+      .contains("Spring Boot layered jar detected")
+      .contains("JIB image build started");
+  }
 
   @Test
   void k8sResource_whenRun_generatesK8sManifests() throws IOException, ParseException {
@@ -66,4 +91,5 @@ class SpringBootIT {
         .contains("jkube-service-discovery: Using first mentioned service port '8080' ")
         .contains("jkube-revision-history: Adding revision history limit to 2");
   }
+
 }

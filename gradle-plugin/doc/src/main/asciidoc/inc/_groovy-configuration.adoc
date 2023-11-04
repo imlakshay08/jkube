@@ -8,17 +8,12 @@
 |====
 | Element | Description | Property
 
-| *apiVersion*
-| Use this variable if you are using an older version of docker not compatible with the current default use to
-communicate with the server.
-| `jkube.docker.apiVersion`
-
  | *authConfig*
 | Authentication information when pulling from or pushing to Docker registry. There is a dedicated section
   <<authentication, Authentication>> for how to do security.
 |
 
-| *access*
+| <<cluster-access-configuration, *access*>>
 | Group of configuration parameters to connect to Kubernetes/OpenShift cluster.
 |
 
@@ -204,7 +199,7 @@ ifeval::["{task-prefix}" == "k8s"]
 | `jkube.kubernetesManifest`
 
 | *kubernetesTemplate*
-| File or directory containing the Kubernetes YAML files to be included as Chart templates.
+| File or directory containing YAML files with OpenShift Template resources to be used as Helm parameters.
 
 Defaults to `${basedir}/build/classes/java/main/META-INF/jkube/kubernetes`
 | `jkube.kubernetesTemplate`
@@ -354,12 +349,6 @@ endif::[]
 Defaults to `false`.
 | `jkube.deploy.servicesOnly`
 
-| *serviceUrlWaitTimeSeconds*
-| Seconds to wait for a URL to be generated for a service
-
-Defaults to `5`.
-| `jkube.serviceUrl.waitSeconds`
-
 | *skip*
 | With this parameter the execution of this plugin can be skipped completely.
 | `jkube.skip`
@@ -486,10 +475,11 @@ if set to `true`.
 | `jkube.watch.follow`
 
 | *workDirectory*
-| The JKube working directory. Defaults to `${project.build.directory}/jkube`.
+| The JKube working directory. Defaults to `${project.build.directory}/jkube-temp`.
 | `jkube.workDir`
 |====
 
+include::{kitdoc-path}/inc/apply/_cluster_access_configuration.adoc[]
 
 == Image Configuration
 
@@ -501,7 +491,7 @@ include::image/_configuration.adoc[]
 
 The `build` section is mandatory and is explained in <<build-configuration, below>>.
 
-include::image/_naming.adoc[]
+include::{kitdoc-path}/inc/image/_naming.adoc[]
 
 include::{kitdoc-path}/inc/build/_index.adoc[]
 

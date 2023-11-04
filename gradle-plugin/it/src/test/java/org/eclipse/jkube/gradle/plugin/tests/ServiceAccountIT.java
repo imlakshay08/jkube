@@ -1,4 +1,4 @@
-/**
+/*
  * Copyright (c) 2019 Red Hat, Inc.
  * This program and the accompanying materials are made
  * available under the terms of the Eclipse Public License 2.0
@@ -37,9 +37,9 @@ class ServiceAccountIT {
   static Stream<Arguments> data() {
     return Stream.of(
         arguments("serviceaccount", new String[] {}, "default"),
-        arguments("serviceaccount-via-groovy-dsl", new String[] {}, "default"),
+        arguments("serviceaccounts-via-groovy-dsl", new String[] {}, "default"),
         arguments("serviceaccount", new String[] {"-Pjkube.enricher.jkube-serviceaccount.skipCreate=true"}, "skip-create"),
-        arguments("serviceaccount-via-groovy-dsl", new String[] {"-Pjkube.enricher.jkube-serviceaccount.skipCreate=true"}, "skip-create")
+        arguments("serviceaccounts-via-groovy-dsl", new String[] {"-Pjkube.enricher.jkube-serviceaccount.skipCreate=true"}, "skip-create")
     );
   }
 

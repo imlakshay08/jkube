@@ -1,4 +1,4 @@
-/**
+/*
  * Copyright (c) 2019 Red Hat, Inc.
  * This program and the accompanying materials are made
  * available under the terms of the Eclipse Public License 2.0
@@ -23,13 +23,14 @@ import org.eclipse.jkube.kit.common.KitLogger;
 import org.eclipse.jkube.kit.common.Maintainer;
 import org.eclipse.jkube.kit.common.RegistryServerConfiguration;
 import org.eclipse.jkube.kit.common.util.KubernetesHelper;
-import org.eclipse.jkube.kit.common.util.ResourceUtil;
+import org.eclipse.jkube.kit.common.util.Serialization;
 import org.eclipse.jkube.kit.config.resource.JKubeAnnotations;
 
 import java.io.File;
 import java.io.FilenameFilter;
 import java.io.IOException;
 import java.util.ArrayList;
+import java.util.Collection;
 import java.util.Collections;
 import java.util.List;
 import java.util.Locale;
@@ -43,8 +44,12 @@ import java.util.stream.Stream;
 
 import static org.apache.commons.lang3.StringUtils.EMPTY;
 import static org.eclipse.jkube.kit.common.util.JKubeProjectUtil.getProperty;
+import static org.eclipse.jkube.kit.common.util.YamlUtil.listYamls;
 
 public class HelmServiceUtil {
+
+  private static final String PROPERTY_API_VERSION = "jkube.helm.apiVersion";
+  private static final String DEFAULT_API_VERSION = "v1";
   private static final String PROPERTY_ICON = "jkube.helm.icon";
   private static final String PROPERTY_TYPE = "jkube.helm.type";
   private static final String PROPERTY_CHART = "jkube.helm.chart";
@@ -70,41 +75,40 @@ public class HelmServiceUtil {
   private HelmServiceUtil() { }
 
   public static HelmConfig.HelmConfigBuilder initHelmConfig(
-      HelmConfig.HelmType defaultHelmType, JavaProject project, File manifest, File template, HelmConfig original)
-      throws IOException {
+      HelmConfig.HelmType defaultHelmType, JavaProject project, File template, HelmConfig original) throws IOException {
 
-    if (original == null) {
-      original = new HelmConfig();
+    final HelmConfig helmConfig = original == null ? new HelmConfig() : original;
+    helmConfig.setApiVersion(resolveFromPropertyOrDefault(PROPERTY_API_VERSION, project, helmConfig::getApiVersion, () -> DEFAULT_API_VERSION));
+    helmConfig.setChart(resolveFromPropertyOrDefault(PROPERTY_CHART, project, helmConfig::getChart, project::getArtifactId));
+    helmConfig.setChartExtension(resolveFromPropertyOrDefault(PROPERTY_CHART_EXTENSION, project, helmConfig::getChartExtension, () -> DEFAULT_CHART_EXTENSION));
+    helmConfig.setVersion(resolveFromPropertyOrDefault(PROPERTY_VERSION, project, helmConfig::getVersion, project::getVersion));
+    helmConfig.setDescription(resolveFromPropertyOrDefault(PROPERTY_DESCRIPTION, project, helmConfig::getDescription, project::getDescription));
+    helmConfig.setHome(resolveFromPropertyOrDefault(PROPERTY_HOME, project, helmConfig::getHome, project::getUrl));
+    if (helmConfig.getSources() == null) {
+      helmConfig.setSources(project.getScmUrl() != null ? Collections.singletonList(project.getScmUrl()) : Collections.emptyList());
     }
-    original.setChart(resolveFromPropertyOrDefault(PROPERTY_CHART, project, original::getChart, project.getArtifactId()));
-    original.setChartExtension(resolveFromPropertyOrDefault(PROPERTY_CHART_EXTENSION, project, original::getChartExtension, DEFAULT_CHART_EXTENSION));
-    original.setVersion(resolveFromPropertyOrDefault(PROPERTY_VERSION, project, original::getVersion, project.getVersion()));
-    original.setDescription(resolveFromPropertyOrDefault(PROPERTY_DESCRIPTION, project, original::getDescription, project.getDescription()));
-    original.setHome(resolveFromPropertyOrDefault(PROPERTY_HOME, project, original::getHome, project.getUrl()));
-    if (original.getSources() == null) {
-      original.setSources(project.getScmUrl() != null ? Collections.singletonList(project.getScmUrl()) : Collections.emptyList());
-    }
-    if (original.getMaintainers() == null && project.getMaintainers() != null) {
-      original.setMaintainers(project.getMaintainers().stream()
+    if (helmConfig.getMaintainers() == null && project.getMaintainers() != null) {
+      helmConfig.setMaintainers(project.getMaintainers().stream()
           .filter(m -> StringUtils.isNotBlank(m.getName()) || StringUtils.isNotBlank(m.getEmail()))
           .map(m -> new Maintainer(m.getName(), m.getEmail()))
           .collect(Collectors.toList()));
     }
-    original.setIcon(resolveFromPropertyOrDefault(PROPERTY_ICON, project, original::getIcon, findIconURL(manifest)));
-    original.setAdditionalFiles(getAdditionalFiles(original, project));
-    if (original.getParameterTemplates() == null) {
-      original.setParameterTemplates(findTemplates(template));
+    helmConfig.setAdditionalFiles(getAdditionalFiles(helmConfig, project));
+    if (helmConfig.getParameterTemplates() == null) {
+      helmConfig.setParameterTemplates(findTemplates(template));
     }
-    original.setTypes(resolveHelmTypes(defaultHelmType, project));
+    helmConfig.setTypes(resolveHelmTypes(defaultHelmType, project));
 
-    original.setSourceDir(resolveFromPropertyOrDefault(PROPERTY_SOURCE_DIR, project, original::getSourceDir,
-        String.format("%s/META-INF/jkube/", project.getOutputDirectory())));
-    original.setOutputDir(resolveFromPropertyOrDefault(PROPERTY_OUTPUT_DIR, project, original::getOutputDir,
-        String.format("%s/jkube/helm/%s", project.getBuildDirectory(), original.getChart())));
-    original.setTarFileClassifier(resolveFromPropertyOrDefault(PROPERTY_TARBALL_CLASSIFIER, project, original::getTarFileClassifier, EMPTY));
-    original.setTarballOutputDir(resolveFromPropertyOrDefault(PROPERTY_TARBALL_OUTPUT_DIR, project, original::getTarballOutputDir,
-        original.getOutputDir()));
-    return original.toBuilder();
+    helmConfig.setSourceDir(resolveFromPropertyOrDefault(PROPERTY_SOURCE_DIR, project, helmConfig::getSourceDir,
+        () -> String.format("%s/META-INF/jkube/", project.getOutputDirectory())));
+    helmConfig.setOutputDir(resolveFromPropertyOrDefault(PROPERTY_OUTPUT_DIR, project, helmConfig::getOutputDir,
+      () -> String.format("%s/jkube/helm/%s", project.getBuildDirectory(), helmConfig.getChart())));
+    helmConfig.setIcon(resolveFromPropertyOrDefault(PROPERTY_ICON, project, helmConfig::getIcon,
+        () -> findIconURL(new File(helmConfig.getSourceDir()), helmConfig.getTypes())));
+    helmConfig.setTarFileClassifier(resolveFromPropertyOrDefault(PROPERTY_TARBALL_CLASSIFIER, project, helmConfig::getTarFileClassifier, () -> EMPTY));
+    helmConfig.setTarballOutputDir(resolveFromPropertyOrDefault(PROPERTY_TARBALL_OUTPUT_DIR, project, helmConfig::getTarballOutputDir,
+        helmConfig::getOutputDir));
+    return helmConfig.toBuilder();
   }
 
   public static HelmConfig initHelmPushConfig(HelmConfig helmConfig, JavaProject project) {
@@ -115,7 +119,7 @@ public class HelmServiceUtil {
     helmConfig.setStableRepository(initHelmRepository(helmConfig.getStableRepository(), project, STABLE_REPOSITORY));
     helmConfig.setSnapshotRepository(initHelmRepository(helmConfig.getSnapshotRepository(), project, SNAPSHOT_REPOSITORY));
 
-    helmConfig.setSecurity(resolveFromPropertyOrDefault(PROPERTY_SECURITY, project, helmConfig::getSecurity, DEFAULT_SECURITY));
+    helmConfig.setSecurity(resolveFromPropertyOrDefault(PROPERTY_SECURITY, project, helmConfig::getSecurity, () -> DEFAULT_SECURITY));
     return helmConfig;
   }
 
@@ -151,12 +155,12 @@ public class HelmServiceUtil {
     return helmTypes;
   }
 
-  static String resolveFromPropertyOrDefault(String property, JavaProject project, Supplier<String> getter, String defaultValue) {
+  static String resolveFromPropertyOrDefault(String property, JavaProject project, Supplier<String> getter, Supplier<String> defaultValue) {
     return Optional.ofNullable(getProperty(property, project))
       .filter(StringUtils::isNotBlank)
       .orElse(Optional.ofNullable(getter.get())
         .filter(StringUtils::isNotBlank)
-        .orElse(defaultValue));
+        .orElseGet(defaultValue == null ? () -> null : defaultValue));
   }
 
   static List<File> getAdditionalFiles(HelmConfig helm, JavaProject project) {
@@ -179,29 +183,45 @@ public class HelmServiceUtil {
       .map(files -> files[0]);
   }
 
-  static String findIconURL(File manifest) {
+  static String findIconURL(File directory, Collection<HelmConfig.HelmType> types) {
     String answer = null;
-    if (manifest != null && manifest.isFile()) {
-      KubernetesResource dto;
-      try {
-        dto = ResourceUtil.load(manifest, KubernetesResource.class);
-      } catch (IOException e) {
-        throw new IllegalStateException("Failed to load kubernetes YAML " + manifest + ". " + e, e);
+    for (HelmConfig.HelmType type : types) {
+      for (File yaml : listYamls(new File(directory, type.getSourceDir()))) {
+        KubernetesResource dto;
+        try {
+          dto = Serialization.unmarshal(yaml);
+        } catch (IOException e) {
+          throw new IllegalStateException("Failed to load kubernetes YAML " + yaml + ". " + e, e);
+        }
+        if (dto instanceof HasMetadata) {
+          answer = getJKubeIconUrlFromAnnotations(KubernetesHelper.getOrCreateAnnotations((HasMetadata) dto));
+        } else if (StringUtils.isBlank(answer) && dto instanceof KubernetesList) {
+          answer = extractIconUrlAnnotationFromKubernetesList((KubernetesList) dto);
+        }
       }
-      if (dto instanceof HasMetadata) {
-        Map<String, String> annotations = KubernetesHelper.getOrCreateAnnotations((HasMetadata) dto);
-        answer = getJKubeIconUrlFromAnnotations(annotations);
-      }
-      answer = extractIconUrlAnnotationFromKubernetesList(answer, dto);
     }
     return answer;
+  }
+
+  private static String extractIconUrlAnnotationFromKubernetesList(KubernetesList list) {
+    if (list.getItems() != null) {
+      for (HasMetadata item : list.getItems()) {
+        final String url = getJKubeIconUrlFromAnnotations(KubernetesHelper.getOrCreateAnnotations(item));
+        if (StringUtils.isNotBlank(url)) {
+          return url;
+        }
+      }
+    }
+    return null;
   }
 
   static List<Template> findTemplates(File templateDir) throws IOException {
     final List<Template> ret = new ArrayList<>();
     final File[] sourceFiles;
     if (templateDir != null && templateDir.isDirectory()) {
-      sourceFiles = templateDir.listFiles((dir, filename) -> filename.endsWith("-template.yml"));
+      sourceFiles = templateDir.listFiles((dir, filename) ->
+              filename.toLowerCase(Locale.ROOT).endsWith("-template.yml") ||
+              filename.toLowerCase(Locale.ROOT).endsWith("-template.yaml"));
     } else if (templateDir != null) {
       sourceFiles = new File[] { templateDir };
     } else {
@@ -209,8 +229,8 @@ public class HelmServiceUtil {
     }
     for (File sourceFile : Objects
       .requireNonNull(sourceFiles, "No template files found in the provided directory")) {
-      final KubernetesResource dto = ResourceUtil.load(sourceFile, KubernetesResource.class);
-      if (dto instanceof  Template) {
+      final KubernetesResource dto = Serialization.unmarshal(sourceFile);
+      if (dto instanceof Template) {
         ret.add((Template) dto);
       } else if (dto instanceof KubernetesList) {
         Optional.ofNullable(((KubernetesList)dto).getItems())
@@ -270,22 +290,6 @@ public class HelmServiceUtil {
     }
   }
 
-  private static String extractIconUrlAnnotationFromKubernetesList(String answer, KubernetesResource dto) {
-    if (StringUtils.isBlank(answer) && dto instanceof KubernetesList) {
-      KubernetesList list = (KubernetesList) dto;
-      List<HasMetadata> items = list.getItems();
-      if (items != null) {
-        for (HasMetadata item : items) {
-          Map<String, String> annotations = KubernetesHelper.getOrCreateAnnotations(item);
-          answer = getJKubeIconUrlFromAnnotations(annotations);
-          if (StringUtils.isNotBlank(answer)) {
-            break;
-          }
-        }
-      }
-    }
-    return answer;
-  }
 
   private static String getJKubeIconUrlFromAnnotations(Map<String, String> annotations) {
     if (annotations.containsKey(JKubeAnnotations.ICON_URL.value(true))) {

@@ -1,4 +1,4 @@
-/**
+/*
  * Copyright (c) 2019 Red Hat, Inc.
  * This program and the accompanying materials are made
  * available under the terms of the Eclipse Public License 2.0
@@ -26,7 +26,7 @@ import java.nio.charset.StandardCharsets;
 class KubernetesExtensionIT {
 
   @RegisterExtension
-  private final ITGradleRunnerExtension gradleRunner = new ITGradleRunnerExtension();
+  final ITGradleRunnerExtension gradleRunner = new ITGradleRunnerExtension();
 
   @Test
   void k8sConfigView_containsAFullyDeserializedConfiguration() throws IOException, ParseException {
@@ -37,7 +37,7 @@ class KubernetesExtensionIT {
     // Then
     final String output = result.getOutput();
     ResourceVerify.verifyResourceDescriptors(
-        output.substring(output.indexOf("---"), output.indexOf("BUILD SUCCESSFUL in")),
+        output.substring(output.indexOf("---"), output.lastIndexOf("---")),
         FileUtils.readFileToString(gradleRunner.resolveFile("expected", "expected-config.yml"), StandardCharsets.UTF_8),
         false);
   }

@@ -1,4 +1,4 @@
-/**
+/*
  * Copyright (c) 2019 Red Hat, Inc.
  * This program and the accompanying materials are made
  * available under the terms of the Eclipse Public License 2.0
@@ -16,12 +16,15 @@ package org.eclipse.jkube.enricher.generic;
 import io.fabric8.kubernetes.api.builder.TypedVisitor;
 import io.fabric8.kubernetes.api.model.HasMetadata;
 import io.fabric8.kubernetes.api.model.KubernetesListBuilder;
+import io.fabric8.kubernetes.api.model.PodSpec;
 import io.fabric8.kubernetes.api.model.ServiceAccount;
 import io.fabric8.kubernetes.api.model.ServiceAccountBuilder;
 import io.fabric8.kubernetes.api.model.apps.DeploymentBuilder;
 import lombok.AllArgsConstructor;
 import lombok.Getter;
+import org.apache.commons.lang3.StringUtils;
 import org.eclipse.jkube.kit.common.Configs;
+import org.eclipse.jkube.kit.common.util.JKubeProjectUtil;
 import org.eclipse.jkube.kit.config.resource.PlatformMode;
 import org.eclipse.jkube.kit.config.resource.ResourceConfig;
 import org.eclipse.jkube.kit.config.resource.ServiceAccountConfig;
@@ -61,12 +64,15 @@ public class ServiceAccountEnricher extends BaseEnricher {
                 .filter(sa -> sa.getDeploymentRef() != null)
                 .collect(Collectors.toMap(ServiceAccountConfig::getDeploymentRef, ServiceAccountConfig::getName)));
         }
-        builder.addAllToServiceAccountItems(createServiceAccountFromResourceConfig(resourceConfig));
-        builder.addAllToServiceAccountItems(createServiceAccountsReferencedInDeployment(builder, deploymentToSaPair));
+        if (resourceConfig != null && StringUtils.isNotBlank(resourceConfig.getServiceAccount())) {
+            deploymentToSaPair.put(JKubeProjectUtil.createDefaultResourceName(getContext().getGav().getSanitizedArtifactId()), resourceConfig.getServiceAccount());
+        }
+        builder.addAllToItems(createServiceAccountFromResourceConfig(resourceConfig));
+        builder.addAllToItems(createServiceAccountsReferencedInDeployment(builder, deploymentToSaPair));
     }
 
-    private List<ServiceAccount> createServiceAccountFromResourceConfig(ResourceConfig resourceConfig) {
-        List<ServiceAccount> serviceAccounts = new ArrayList<>();
+    private List<HasMetadata> createServiceAccountFromResourceConfig(ResourceConfig resourceConfig) {
+        List<HasMetadata> serviceAccounts = new ArrayList<>();
         if(resourceConfig != null && resourceConfig.getServiceAccounts() != null && !Boolean.parseBoolean(getConfig(Config.SKIP_CREATE))) {
             for(ServiceAccountConfig serviceAccountConfig : resourceConfig.getServiceAccounts()) {
                 if(serviceAccountConfig.getName() != null) {
@@ -77,8 +83,8 @@ public class ServiceAccountEnricher extends BaseEnricher {
         return serviceAccounts;
     }
 
-    private List<ServiceAccount> createServiceAccountsReferencedInDeployment(KubernetesListBuilder builder, Map<String, String> deploymentToSaPair) {
-        List<ServiceAccount> serviceAccounts = new ArrayList<>();
+    private List<HasMetadata> createServiceAccountsReferencedInDeployment(KubernetesListBuilder builder, Map<String, String> deploymentToSaPair) {
+        List<HasMetadata> serviceAccounts = new ArrayList<>();
         builder.accept(new TypedVisitor<DeploymentBuilder>() {
             @Override
             public void visit(DeploymentBuilder deploymentBuilder) {
@@ -88,13 +94,16 @@ public class ServiceAccountEnricher extends BaseEnricher {
                     serviceAccounts.add(createServiceAccount(serviceAccountName));
                 }
                 if(deploymentToSaPair.containsKey(deploymentBuilder.buildMetadata().getName())) {
-                    deploymentBuilder.editSpec()
-                        .editTemplate()
-                        .editSpec()
-                        .withServiceAccountName(deploymentToSaPair.get(deploymentBuilder.buildMetadata().getName()))
-                        .endSpec()
-                        .endTemplate()
-                        .endSpec();
+                    PodSpec podSpec = deploymentBuilder.buildSpec().getTemplate().getSpec();
+                    if (StringUtils.isBlank(podSpec.getServiceAccount()) && StringUtils.isBlank(podSpec.getServiceAccountName())) {
+                        deploymentBuilder.editSpec()
+                            .editTemplate()
+                            .editSpec()
+                            .withServiceAccountName(deploymentToSaPair.get(deploymentBuilder.buildMetadata().getName()))
+                            .endSpec()
+                            .endTemplate()
+                            .endSpec();
+                    }
                 }
             }
         });

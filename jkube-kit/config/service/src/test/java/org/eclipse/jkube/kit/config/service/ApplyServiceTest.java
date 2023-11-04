@@ -1,4 +1,4 @@
-/**
+/*
  * Copyright (c) 2019 Red Hat, Inc.
  * This program and the accompanying materials are made
  * available under the terms of the Eclipse Public License 2.0
@@ -11,7 +11,6 @@
  * Contributors:
  *   Red Hat, Inc. - initial API and implementation
  */
-
 package org.eclipse.jkube.kit.config.service;
 
 import java.io.File;
@@ -21,20 +20,31 @@ import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Set;
 
+import io.fabric8.kubernetes.api.model.APIGroupListBuilder;
 import io.fabric8.kubernetes.api.model.APIResource;
 import io.fabric8.kubernetes.api.model.APIResourceBuilder;
 import io.fabric8.kubernetes.api.model.APIResourceListBuilder;
 import io.fabric8.kubernetes.api.model.ConfigMap;
 import io.fabric8.kubernetes.api.model.GenericKubernetesResource;
 import io.fabric8.kubernetes.api.model.GenericKubernetesResourceBuilder;
+import io.fabric8.kubernetes.api.model.PersistentVolumeClaimBuilder;
+import io.fabric8.kubernetes.api.model.SecretBuilder;
 import io.fabric8.kubernetes.api.model.ServiceAccount;
 import io.fabric8.kubernetes.api.model.ServiceAccountBuilder;
+import io.fabric8.kubernetes.api.model.apiextensions.v1.CustomResourceDefinitionBuilder;
+import io.fabric8.kubernetes.api.model.authorization.v1.SelfSubjectAccessReviewBuilder;
 import io.fabric8.kubernetes.api.model.networking.v1.Ingress;
 import io.fabric8.kubernetes.api.model.networking.v1.IngressBuilder;
+import io.fabric8.kubernetes.api.model.rbac.RoleBindingBuilder;
 import io.fabric8.kubernetes.client.server.mock.EnableKubernetesMockClient;
 import io.fabric8.kubernetes.client.server.mock.KubernetesMockServer;
 import io.fabric8.openshift.client.OpenShiftClient;
+import org.eclipse.jkube.kit.common.JKubeConfiguration;
 import org.eclipse.jkube.kit.common.KitLogger;
+import org.eclipse.jkube.kit.common.util.Serialization;
+import org.eclipse.jkube.kit.config.access.ClusterAccess;
+import org.eclipse.jkube.kit.config.access.ClusterConfiguration;
+import org.eclipse.jkube.kit.config.resource.RuntimeMode;
 import org.eclipse.jkube.kit.config.service.openshift.WebServerEventCollector;
 
 import io.fabric8.kubernetes.api.model.ConfigMapBuilder;
@@ -46,7 +56,6 @@ import io.fabric8.kubernetes.api.model.ReplicationControllerBuilder;
 import io.fabric8.kubernetes.api.model.ServiceBuilder;
 import io.fabric8.kubernetes.api.model.apps.DeploymentBuilder;
 import io.fabric8.kubernetes.api.model.networking.v1.NetworkPolicyBuilder;
-import io.fabric8.kubernetes.client.utils.Serialization;
 import io.fabric8.openshift.api.model.DeploymentConfigBuilder;
 import io.fabric8.openshift.api.model.Project;
 import io.fabric8.openshift.api.model.ProjectBuilder;
@@ -63,7 +72,6 @@ import static org.assertj.core.api.Assertions.assertThat;
 
 @EnableKubernetesMockClient
 class ApplyServiceTest {
-    private KitLogger log;
 
     KubernetesMockServer mockServer;
     OpenShiftClient client;
@@ -72,9 +80,22 @@ class ApplyServiceTest {
 
     @BeforeEach
     void setUp() {
-        log = new KitLogger.SilentLogger();
-        applyService = new ApplyService(client, log);
-        applyService.setNamespace("default");
+      final JKubeServiceHub serviceHub = JKubeServiceHub.builder()
+        .log(new KitLogger.SilentLogger())
+        .configuration(JKubeConfiguration.builder().build())
+        .platformMode(RuntimeMode.KUBERNETES)
+        .clusterAccess(new ClusterAccess(ClusterConfiguration.from(client.getConfiguration()).build()))
+        .build();
+      applyService = new ApplyService(serviceHub);
+      applyService.setNamespace("default");
+      // In OpenShift
+      mockServer.expect()
+        .get()
+        .withPath("/apis")
+        .andReturn(200, new APIGroupListBuilder()
+          .addNewGroup().withName("build.openshift.io").withApiVersion("v1").endGroup()
+          .build())
+        .always();
     }
 
     @Test
@@ -88,7 +109,12 @@ class ApplyServiceTest {
             new ReplicationControllerBuilder().withNewMetadata().withName("rc1").endMetadata().build(),
             new NamespaceBuilder().withNewMetadata().withName("ns1").endMetadata().build(),
             new NetworkPolicyBuilder().withNewMetadata().withName("npv1").endMetadata().build(),
-            new io.fabric8.kubernetes.api.model.extensions.NetworkPolicyBuilder().withNewMetadata().withName("np-ext").endMetadata().build()
+            new io.fabric8.kubernetes.api.model.extensions.NetworkPolicyBuilder().withNewMetadata().withName("np-ext").endMetadata().build(),
+            new SecretBuilder().withNewMetadata().withName("secret1").endMetadata().build(),
+            new RoleBindingBuilder().withNewMetadata().withName("rb1").endMetadata().build(),
+            new ServiceAccountBuilder().withNewMetadata().withName("sa1").endMetadata().build(),
+            new PersistentVolumeClaimBuilder().withNewMetadata().withName("pvc1").endMetadata().build(),
+            new CustomResourceDefinitionBuilder().withNewMetadata().withName("crd1").endMetadata().build()
         ));
         String fileName = "foo.yml";
         WebServerEventCollector collector = new WebServerEventCollector();
@@ -124,13 +150,34 @@ class ApplyServiceTest {
             .withPath("/apis/extensions/v1beta1/namespaces/default/networkpolicies")
             .andReply(collector.record("new-np-extensions").andReturn(HTTP_CREATED, ""))
             .once();
+        mockServer.expect().post()
+            .withPath("/api/v1/namespaces/default/secrets")
+            .andReply(collector.record("new-secret").andReturn(HTTP_CREATED, ""))
+            .once();
+        mockServer.expect().post()
+            .withPath("/apis/rbac.authorization.k8s.io/v1/namespaces/default/rolebindings")
+            .andReply(collector.record("new-rb").andReturn(HTTP_CREATED, ""))
+            .once();
+        mockServer.expect().post()
+            .withPath("/api/v1/namespaces/default/serviceaccounts")
+            .andReply(collector.record("new-sa").andReturn(HTTP_CREATED, ""))
+            .once();
+        mockServer.expect().post()
+            .withPath("/api/v1/namespaces/default/persistentvolumeclaims")
+            .andReply(collector.record("new-pvc").andReturn(HTTP_CREATED, ""))
+            .once();
+        mockServer.expect().post()
+            .withPath("/apis/apiextensions.k8s.io/v1/customresourcedefinitions")
+            .andReply(collector.record("new-crd").andReturn(HTTP_CREATED, ""))
+            .once();
 
         // When
-        applyService.applyEntities(fileName, entities, log, 5);
+        applyService.applyEntities(fileName, entities);
 
         // Then
-        collector.assertEventsRecordedInOrder("new-ns", "new-service", "new-configmap", "new-deploy", "new-pod", "new-rc");
-        collector.assertEventsRecorded("new-np-v1", "new-np-extensions");
+        collector.assertEventsRecordedInOrder(
+          "new-ns", "new-secret", "new-sa", "new-service", "new-rb", "new-pvc", "new-configmap", "new-deploy", "new-pod", "new-rc");
+        collector.assertEventsRecorded("new-np-v1", "new-np-extensions", "new-crd");
     }
 
     @Test
@@ -195,7 +242,7 @@ class ApplyServiceTest {
         applyService.apply(route, "route.yml");
 
         collector.assertEventsNotRecorded("get-route");
-        assertThat(mockServer.getRequestCount()).isZero();
+        assertThat(mockServer.getRequestCount()).isEqualTo(1);
     }
 
     @Test
@@ -212,7 +259,7 @@ class ApplyServiceTest {
         applyService.apply(route, "route.yml");
 
         collector.assertEventsRecordedInOrder("get-route");
-        assertThat(mockServer.getRequestCount()).isOne();
+        assertThat(mockServer.getRequestCount()).isEqualTo(3);
     }
 
     @Test
@@ -220,8 +267,8 @@ class ApplyServiceTest {
         // Given
         File gatewayFragment = new File(getClass().getResource("/gateway-cr.yml").getFile());
         File virtualServiceFragment = new File(getClass().getResource("/virtualservice-cr.yml").getFile());
-        GenericKubernetesResource gateway = Serialization.yamlMapper().readValue(gatewayFragment, GenericKubernetesResource.class);
-        GenericKubernetesResource virtualService = Serialization.yamlMapper().readValue(virtualServiceFragment, GenericKubernetesResource.class);
+        GenericKubernetesResource gateway = Serialization.unmarshal(gatewayFragment, GenericKubernetesResource.class);
+        GenericKubernetesResource virtualService = Serialization.unmarshal(virtualServiceFragment, GenericKubernetesResource.class);
         WebServerEventCollector collector = new WebServerEventCollector();
         mockServer.expect().get()
                 .withPath("/apis/networking.istio.io/v1alpha3")
@@ -251,8 +298,8 @@ class ApplyServiceTest {
         // Given
         File gatewayFragment = new File(getClass().getResource("/gateway-cr.yml").getFile());
         File virtualServiceFragment = new File(getClass().getResource("/virtualservice-cr.yml").getFile());
-        GenericKubernetesResource gateway = Serialization.yamlMapper().readValue(gatewayFragment, GenericKubernetesResource.class);
-        GenericKubernetesResource virtualService = Serialization.yamlMapper().readValue(virtualServiceFragment, GenericKubernetesResource.class);
+        GenericKubernetesResource gateway = Serialization.unmarshal(gatewayFragment, GenericKubernetesResource.class);
+        GenericKubernetesResource virtualService = Serialization.unmarshal(virtualServiceFragment, GenericKubernetesResource.class);
         WebServerEventCollector collector = new WebServerEventCollector();
         mockServer.expect().get()
                  .withPath("/apis/networking.istio.io/v1alpha3")
@@ -295,8 +342,8 @@ class ApplyServiceTest {
         // Given
         File gatewayFragment = new File(getClass().getResource("/gateway-cr.yml").getFile());
         File virtualServiceFragment = new File(getClass().getResource("/virtualservice-cr.yml").getFile());
-        GenericKubernetesResource gateway = Serialization.yamlMapper().readValue(gatewayFragment, GenericKubernetesResource.class);
-        GenericKubernetesResource virtualService = Serialization.yamlMapper().readValue(virtualServiceFragment, GenericKubernetesResource.class);
+        GenericKubernetesResource gateway = Serialization.unmarshal(gatewayFragment, GenericKubernetesResource.class);
+        GenericKubernetesResource virtualService = Serialization.unmarshal(virtualServiceFragment, GenericKubernetesResource.class);
         WebServerEventCollector collector = new WebServerEventCollector();
         mockServer.expect().get()
             .withPath("/apis/networking.istio.io/v1alpha3")
@@ -407,6 +454,9 @@ class ApplyServiceTest {
         mockServer.expect().post().withPath("/apis/networking.k8s.io/v1/namespaces/ns2/ingresses")
                 .andReply(collector.record("ingress-ns2-create").andReturn(HTTP_OK, ingress))
                 .once();
+        mockServer.expect().post().withPath("/apis/authorization.k8s.io/v1/selfsubjectaccessreviews")
+            .andReturn(HTTP_OK, new SelfSubjectAccessReviewBuilder().withNewStatus().withAllowed(false).endStatus().build())
+            .always();
         mockServer.expect().post().withPath("/api/v1/namespaces/default/serviceaccounts")
                 .andReply(collector.record("serviceaccount-default-create").andReturn(HTTP_OK, serviceAccount))
                 .once();
@@ -415,11 +465,11 @@ class ApplyServiceTest {
         applyService.setFallbackNamespace("default");
 
         // When
-        applyService.applyEntities(null, entities, log, 5);
+        applyService.applyEntities(null, entities);
 
         // Then
         collector.assertEventsRecordedInOrder("serviceaccount-default-create", "configmap-ns1-create", "ingress-ns2-create");
-        assertThat(mockServer.getRequestCount()).isEqualTo(5);
+        assertThat(mockServer.getRequestCount()).isEqualTo(10);
         applyService.setFallbackNamespace(null);
         applyService.setNamespace(configuredNamespace);
     }
@@ -442,16 +492,19 @@ class ApplyServiceTest {
         mockServer.expect().post().withPath("/apis/networking.k8s.io/v1/namespaces/default/ingresses")
                 .andReply(collector.record("ingress-default-ns-create").andReturn(HTTP_OK, ingress))
                 .once();
+        mockServer.expect().post().withPath("/apis/authorization.k8s.io/v1/selfsubjectaccessreviews")
+                .andReturn(HTTP_OK, new SelfSubjectAccessReviewBuilder().withNewStatus().withAllowed(false).endStatus().build())
+                .always();
         mockServer.expect().post().withPath("/api/v1/namespaces/default/serviceaccounts")
                 .andReply(collector.record("serviceaccount-default-ns-create").andReturn(HTTP_OK, serviceAccount))
                 .once();
 
         // When
-        applyService.applyEntities(null, entities, log, 5);
+        applyService.applyEntities(null, entities);
 
         // Then
         collector.assertEventsRecordedInOrder("serviceaccount-default-ns-create", "configmap-default-ns-create", "ingress-default-ns-create");
-        assertThat(mockServer.getRequestCount()).isEqualTo(5);
+        assertThat(mockServer.getRequestCount()).isEqualTo(10);
         applyService.setFallbackNamespace(null);
     }
 

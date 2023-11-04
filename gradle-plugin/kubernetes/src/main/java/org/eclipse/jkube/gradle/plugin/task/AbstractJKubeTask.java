@@ -1,4 +1,4 @@
-/**
+/*
  * Copyright (c) 2019 Red Hat, Inc.
  * This program and the accompanying materials are made
  * available under the terms of the Eclipse Public License 2.0
@@ -13,7 +13,9 @@
  */
 package org.eclipse.jkube.gradle.plugin.task;
 
+import java.io.BufferedWriter;
 import java.io.File;
+import java.io.FileWriter;
 import java.io.IOException;
 import java.util.Collections;
 import java.util.List;
@@ -30,22 +32,27 @@ import org.eclipse.jkube.kit.build.service.docker.config.handler.ImageConfigReso
 import org.eclipse.jkube.kit.common.JKubeConfiguration;
 import org.eclipse.jkube.kit.common.KitLogger;
 import org.eclipse.jkube.kit.common.RegistryConfig;
+import org.eclipse.jkube.kit.common.util.LazyBuilder;
 import org.eclipse.jkube.kit.common.util.ResourceUtil;
 import org.eclipse.jkube.kit.config.access.ClusterAccess;
 import org.eclipse.jkube.kit.config.access.ClusterConfiguration;
 import org.eclipse.jkube.kit.config.image.ImageConfiguration;
 import org.eclipse.jkube.kit.config.resource.ProcessorConfig;
+import org.eclipse.jkube.kit.config.resource.ResourceConfig;
+import org.eclipse.jkube.kit.config.resource.ResourceServiceConfig;
 import org.eclipse.jkube.kit.config.service.JKubeServiceHub;
 import org.eclipse.jkube.kit.enricher.api.DefaultEnricherManager;
 import org.eclipse.jkube.kit.enricher.api.JKubeEnricherContext;
 import org.eclipse.jkube.kit.profile.ProfileUtil;
 
+import org.eclipse.jkube.kit.resource.service.DefaultResourceService;
 import org.gradle.api.DefaultTask;
 import org.gradle.api.logging.configuration.ConsoleOutput;
 import org.gradle.api.tasks.Internal;
 import org.gradle.api.tasks.TaskAction;
 
 import static org.eclipse.jkube.kit.build.service.docker.helper.ConfigHelper.initImageConfiguration;
+import static org.eclipse.jkube.kit.common.JKubeFileInterpolator.interpolate;
 import static org.eclipse.jkube.kit.common.util.BuildReferenceDateUtil.getBuildTimestamp;
 import static org.eclipse.jkube.kit.config.service.kubernetes.KubernetesClientUtil.updateResourceConfigNamespace;
 
@@ -79,7 +86,7 @@ public abstract class AbstractJKubeTask extends DefaultTask implements Kubernete
     kitLogger = createLogger(null);
     logOutputSpecFactory = new LogOutputSpecFactory(isAnsiEnabled(), kubernetesExtension.getLogStdoutOrDefault(),
         kubernetesExtension.getLogDateOrNull());
-    clusterAccess = new ClusterAccess(kitLogger, initClusterConfiguration());
+    clusterAccess = new ClusterAccess(initClusterConfiguration());
     jKubeServiceHub = initJKubeServiceHubBuilder().build();
     kubernetesExtension.resources = updateResourceConfigNamespace(kubernetesExtension.getNamespaceOrNull(), kubernetesExtension.resources);
     ImageConfigResolver imageConfigResolver = new ImageConfigResolver();
@@ -145,7 +152,25 @@ public abstract class AbstractJKubeTask extends DefaultTask implements Kubernete
             .build())
         .clusterAccess(clusterAccess)
         .offline(kubernetesExtension.getOfflineOrDefault())
-        .platformMode(kubernetesExtension.getRuntimeMode());
+        .platformMode(kubernetesExtension.getRuntimeMode())
+        .resourceServiceConfig(initResourceServiceConfig())
+        .resourceService(new LazyBuilder<>(hub -> new DefaultResourceService(hub.getResourceServiceConfig())));
+  }
+
+  private ResourceServiceConfig initResourceServiceConfig() {
+    ResourceConfig resourceConfig = kubernetesExtension.resources;
+    if (kubernetesExtension.getNamespaceOrNull() != null) {
+      resourceConfig = ResourceConfig.toBuilder(resourceConfig).namespace(kubernetesExtension.getNamespaceOrNull()).build();
+    }
+    return ResourceServiceConfig.builder()
+      .project(kubernetesExtension.javaProject)
+      .resourceDirs(resolveResourceSourceDirectory())
+      .targetDir(kubernetesExtension.getResourceTargetDirectoryOrDefault())
+      .resourceFileType(kubernetesExtension.getResourceFileTypeOrDefault())
+      .resourceConfig(resourceConfig)
+      .interpolateTemplateParameters(kubernetesExtension.getInterpolateTemplateParametersOrDefault())
+      .resourceFilesProcessor(this::gradleFilterFiles)
+      .build();
   }
 
   protected GeneratorContext.GeneratorContextBuilder initGeneratorContextBuilder() {
@@ -179,7 +204,6 @@ public abstract class AbstractJKubeTask extends DefaultTask implements Kubernete
 
   protected List<ImageConfiguration> resolveImages(ImageConfigResolver imageConfigResolver) throws IOException {
     return initImageConfiguration(
-        kubernetesExtension.getApiVersionOrNull(),
         getBuildTimestamp(null, null, kubernetesExtension.javaProject.getBuildDirectory().getAbsolutePath(),
             DOCKER_BUILD_TIMESTAMP),
         kubernetesExtension.images, imageConfigResolver, kitLogger,
@@ -200,4 +224,25 @@ public abstract class AbstractJKubeTask extends DefaultTask implements Kubernete
     return manifest;
   }
 
+  private File[] gradleFilterFiles(File[] resourceFiles) throws IOException {
+    if (resourceFiles == null) {
+      return new File[0];
+    }
+    final File outDir = kubernetesExtension.getWorkDirectoryOrDefault();
+    if (!outDir.exists() && !outDir.mkdirs()) {
+      throw new IOException("Cannot create working dir " + outDir);
+    }
+    File[] ret = new File[resourceFiles.length];
+    int i = 0;
+    for (File resource : resourceFiles) {
+      File targetFile = new File(outDir, resource.getName());
+      String resourceFragmentInterpolated = interpolate(resource, kubernetesExtension.javaProject.getProperties(),
+        kubernetesExtension.getFilter().getOrNull());
+      try (BufferedWriter writer = new BufferedWriter(new FileWriter(targetFile))) {
+        writer.write(resourceFragmentInterpolated);
+      }
+      ret[i++] = targetFile;
+    }
+    return ret;
+  }
 }

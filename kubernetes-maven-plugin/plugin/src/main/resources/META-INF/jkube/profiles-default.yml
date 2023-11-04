@@ -62,6 +62,7 @@
     - jkube-healthcheck-micronaut
     - jkube-healthcheck-openliberty
     - jkube-healthcheck-smallrye
+    - jkube-healthcheck-helidon
     - jkube-prometheus
     - jkube-service-discovery
 
@@ -92,6 +93,7 @@
     - karaf
     - vertx
     - micronaut
+    - helidon
     - java-exec
     - webapp
   watcher:
@@ -120,6 +122,7 @@
     - wildfly-jar
     - karaf
     - vertx
+    - helidon
     - java-exec
     - webapp
   enricher:
@@ -154,4 +157,12 @@
   generator:
     excludes: []
   enricher:
-    excludes: []
+    excludes:
+      - jkube-ingress
+      - jkube-openshift-route
+# Enforces best practice and recommended security rules
+- name: security-hardening
+  extends: default
+  enricher:
+    includes:
+      - jkube-security-hardening

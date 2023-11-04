@@ -1,4 +1,4 @@
-/**
+/*
  * Copyright (c) 2019 Red Hat, Inc.
  * This program and the accompanying materials are made
  * available under the terms of the Eclipse Public License 2.0
@@ -40,6 +40,10 @@ import java.util.regex.Pattern;
 import java.util.stream.Collectors;
 
 import io.fabric8.kubernetes.api.model.HTTPHeader;
+import io.fabric8.kubernetes.api.model.KubernetesResource;
+import io.fabric8.kubernetes.api.model.authorization.v1.ResourceAttributesBuilder;
+import io.fabric8.kubernetes.api.model.authorization.v1.SelfSubjectAccessReview;
+import io.fabric8.kubernetes.api.model.authorization.v1.SelfSubjectAccessReviewBuilder;
 import io.fabric8.kubernetes.client.utils.ApiVersionUtil;
 import org.eclipse.jkube.kit.common.KitLogger;
 
@@ -86,9 +90,6 @@ import io.fabric8.openshift.api.model.DeploymentConfigSpec;
 import org.apache.commons.lang3.StringUtils;
 
 
-/**
- * @author roland
- */
 public class KubernetesHelper {
     protected static final String DATE_TIME_FORMAT = "yyyy-MM-dd'T'HH:mm:ssX";
     private static final String FILENAME_PATTERN_REGEX = "^(?<name>.*?)(-(?<type>[^-]+))?\\.(?<ext>yaml|yml|json)$";
@@ -246,11 +247,12 @@ public class KubernetesHelper {
      * @param entity entity as HasMetadata
      * @return kind of resource
      */
-    public static String getKind(HasMetadata entity) {
+    public static String getKind(KubernetesResource entity) {
         if (entity != null) {
-            // TODO use reflection to find the kind?
             if (entity instanceof KubernetesList) {
                 return "List";
+            } else if (entity instanceof HasMetadata) {
+                return ((HasMetadata) entity).getKind();
             } else {
                 return entity.getClass().getSimpleName();
             }
@@ -260,10 +262,10 @@ public class KubernetesHelper {
     }
 
     /**
-     * Returns true if the pod is running
+     * Returns true if the pod is running.
      *
-     * @param pod Pod object
-     * @return boolean value indicating it's status
+     * @param pod Pod object.
+     * @return true if Pod is running, false otherwise.
      */
     public static boolean isPodRunning(Pod pod) {
         return isInPodPhase(pod, "run");
@@ -274,10 +276,10 @@ public class KubernetesHelper {
     }
 
     /**
-     * Returns true if the pod is running and ready
+     * Returns true if the pod is running and ready.
      *
-     * @param pod Pod object
-     * @return boolean value indicating it's status
+     * @param pod Pod object.
+     * @return true if Pod is ready, false otherwise.
      */
     public static boolean isPodReady(Pod pod) {
         if (!isPodRunning(pod)) {
@@ -357,7 +359,7 @@ public class KubernetesHelper {
         if (cause instanceof UnknownHostException) {
             logger.error( "Could not connect to kubernetes cluster!");
             logger.error("Have you started a local cluster or connected to a remote cluster via `kubectl`?");
-            logger.info("For more help see: https://www.eclipse.org/jkube/docs/#getting-started");
+            logger.info("For more help see: https://www.eclipse.dev/jkube/docs/#getting-started");
             logger.error( "Connection error: %s", cause);
 
             String message = "Could not connect to kubernetes cluster. Have you started a local cluster or connected to a remote cluster via `kubectl`? Error: " + cause;
@@ -636,7 +638,6 @@ public class KubernetesHelper {
     }
 
     public static String getEnvVar(List<EnvVar> envVarList, String name, String defaultValue) {
-        String answer = defaultValue;
         if (envVarList != null) {
             for (EnvVar envVar : envVarList) {
                 String envVarName = envVar.getName();
@@ -648,7 +649,7 @@ public class KubernetesHelper {
                 }
             }
         }
-        return answer;
+        return defaultValue;
     }
 
     public static boolean removeEnvVar(List<EnvVar> envVarList, String name) {
@@ -803,6 +804,28 @@ public class KubernetesHelper {
             }
         }
         return httpHeaders;
+    }
+
+    public static boolean hasAccessForAction(
+      KubernetesClient client, String namespace, String group, String resource, String verb) {
+        final ResourceAttributesBuilder resourceAttributesBuilder = new ResourceAttributesBuilder();
+        if (StringUtils.isNotBlank(group)) {
+            resourceAttributesBuilder.withGroup(group);
+        }
+        if (StringUtils.isNotBlank(resource)) {
+            resourceAttributesBuilder.withResource(resource);
+        }
+        if (StringUtils.isNotBlank(namespace)) {
+            resourceAttributesBuilder.withNamespace(namespace);
+        }
+        if (StringUtils.isNotBlank(verb)) {
+            resourceAttributesBuilder.withVerb(verb);
+        }
+        final SelfSubjectAccessReview accessReviewFromServer = client.authorization().v1().selfSubjectAccessReview()
+          .create(new SelfSubjectAccessReviewBuilder()
+            .withNewSpec().withResourceAttributes(resourceAttributesBuilder.build()).endSpec()
+            .build());
+        return accessReviewFromServer.getStatus().getAllowed();
     }
 }
 

@@ -57,6 +57,7 @@
     - jkube-healthcheck-micronaut
     - jkube-healthcheck-openliberty
     - jkube-healthcheck-smallrye
+    - jkube-healthcheck-helidon
 
     # DeploymentConfigEnricher converts Deployment into DeploymentConfig
     - jkube-openshift-deploymentconfig
@@ -93,6 +94,7 @@
     - karaf
     - vertx
     - micronaut
+    - helidon
     - java-exec
     - webapp
   watcher:
@@ -149,4 +151,12 @@
   generator:
     excludes: []
   enricher:
-    excludes: []
+    excludes:
+      - jkube-ingress
+      - jkube-openshift-route
+# Enforces best practice and recommended security rules
+- name: security-hardening
+  extends: default
+  enricher:
+    includes:
+      - jkube-security-hardening
