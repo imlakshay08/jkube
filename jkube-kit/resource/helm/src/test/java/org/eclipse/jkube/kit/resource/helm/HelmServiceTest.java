@@ -157,6 +157,7 @@ class HelmServiceTest {
       .keywords(Collections.singletonList("ci"))
       .maintainers(Collections.singletonList(Maintainer.builder().name("maintainer-from-config").build()))
       .icon("test-icon")
+      .appVersion("1.33.7")
       .engine("gotpl")
       .dependencies(Collections.singletonList(HelmDependency.builder().name("dependency-from-config").build()));
     // When
@@ -171,11 +172,14 @@ class HelmServiceTest {
       .hasFieldOrPropertyWithValue("description", "Description from helmconfig")
       .hasFieldOrPropertyWithValue("home", "https://example.com")
       .hasFieldOrPropertyWithValue("icon", "test-icon")
+      .hasFieldOrPropertyWithValue("appVersion", "1.33.7")
       .hasFieldOrPropertyWithValue("engine", "gotpl")
       .hasFieldOrPropertyWithValue("keywords", Collections.singletonList("fragment"))
       .hasFieldOrPropertyWithValue("sources", Collections.singletonList("https://source.example.com"))
       .hasFieldOrPropertyWithValue("maintainers", Collections.singletonList(Collections.singletonMap("name", "maintainer-from-config")))
-      .hasFieldOrPropertyWithValue("dependencies", Collections.singletonList(Collections.singletonMap("name", "dependency-from-config")));
+      .hasFieldOrPropertyWithValue("dependencies", Collections.singletonList(Collections.singletonMap("name", "dependency-from-config")))
+      .extracting("annotations").asInstanceOf(InstanceOfAssertFactories.map(String.class, String.class))
+      .containsOnly(entry("example.com/jkube", "norad"));
   }
 
   @Test

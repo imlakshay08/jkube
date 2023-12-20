@@ -32,15 +32,9 @@ import java.util.Map;
 import java.util.Objects;
 import java.util.Optional;
 import java.util.Properties;
-import java.util.jar.Attributes;
-import java.util.jar.JarEntry;
-import java.util.jar.JarOutputStream;
-import java.util.jar.Manifest;
 
 import static org.assertj.core.api.Assertions.assertThatIllegalStateException;
 import static org.junit.jupiter.api.Assertions.assertThrows;
-import static org.mockito.Mockito.mock;
-import static org.mockito.Mockito.when;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.entry;
 
@@ -50,26 +44,18 @@ class SpringBootUtilTest {
 
     @BeforeEach
     public void setUp() {
-        mavenProject = mock(JavaProject.class);
+        mavenProject = JavaProject.builder()
+          .properties(new Properties())
+          .build();
     }
 
     @Test
-    void testGetSpringBootApplicationProperties(@TempDir File temporaryFolder) throws IOException {
+    void getSpringBootApplicationPropertiesLoadsStandardProperties(@TempDir File tempDir) throws IOException {
         //Given
-        File applicationProp =  new File(Objects.requireNonNull(getClass().getResource("/util/spring-boot-application.properties")).getPath());
-        String springActiveProfile = null;
-        File targetFolder = new File(temporaryFolder, "target");
-        File classesInTarget = new File(targetFolder, "classes");
-        boolean isTargetClassesCreated = classesInTarget.mkdirs();
-        File applicationPropertiesInsideTarget = new File(classesInTarget, "application.properties");
-        FileUtils.copyFile(applicationProp, applicationPropertiesInsideTarget);
-        URLClassLoader urlClassLoader = ClassUtil.createClassLoader(Arrays.asList(classesInTarget.getAbsolutePath(), applicationProp.getAbsolutePath()), classesInTarget.getAbsolutePath());
-
+        URLClassLoader cl = createClassLoader(tempDir, "/util/springboot/spring-boot-application.properties");
         //When
-        Properties result =  SpringBootUtil.getSpringBootApplicationProperties(springActiveProfile ,urlClassLoader);
-
+        Properties result =  SpringBootUtil.getSpringBootApplicationProperties(cl);
         //Then
-        assertThat(isTargetClassesCreated).isTrue();
         assertThat(result).containsOnly(
                 entry("spring.application.name", "demoservice"),
                 entry("server.port", "9090")
@@ -77,24 +63,11 @@ class SpringBootUtilTest {
     }
 
     @Test
-    void testGetSpringBootDevToolsVersion() {
+    void getSpringBootVersion() {
         //Given
-        Dependency p = Dependency.builder().groupId("org.springframework.boot").version("1.6.3").build();
-        when(mavenProject.getDependencies()).thenReturn(Collections.singletonList(p));
-
-        //when
-        Optional<String> result = SpringBootUtil.getSpringBootDevToolsVersion(mavenProject);
-
-        //Then
-        assertThat(result).isPresent().contains("1.6.3");
-    }
-
-
-    @Test
-    void testGetSpringBootVersion() {
-        //Given
-        Dependency p = Dependency.builder().groupId("org.springframework.boot").version("1.6.3").build();
-        when(mavenProject.getDependencies()).thenReturn(Collections.singletonList(p));
+        mavenProject = mavenProject.toBuilder()
+          .dependency(Dependency.builder().groupId("org.springframework.boot").version("1.6.3").build())
+          .build();
 
         //when
         Optional<String> result = SpringBootUtil.getSpringBootVersion(mavenProject);
@@ -104,11 +77,9 @@ class SpringBootUtilTest {
     }
 
     @Test
-    void testGetSpringBootActiveProfileWhenNotNull() {
+    void getSpringBootActiveProfileWhenNotNull() {
         //Given
-        Properties p = new Properties();
-        p.put("spring.profiles.active","spring-boot");
-        when(mavenProject.getProperties()).thenReturn(p);
+        mavenProject.getProperties().put("spring.profiles.active","spring-boot");
 
         // When
         String result = SpringBootUtil.getSpringBootActiveProfile(mavenProject);
@@ -168,18 +139,21 @@ class SpringBootUtilTest {
     }
 
     @Test
-    void testMultipleProfilesParsing() {
-        Properties props = SpringBootUtil.getPropertiesFromApplicationYamlResource(null, getClass().getResource("/util/springboot/test-application-with-multiple-profiles.yml"));
-
+    void getSpringBootApplicationProperties_withMultipleProfilesAndDefault(@TempDir File tempDir) throws IOException {
+        URLClassLoader cl = createClassLoader(tempDir, "/util/springboot/test-application-with-multiple-profiles.yml");
+        Properties props = SpringBootUtil.getSpringBootApplicationProperties(cl);
         assertThat(props).isNotEmpty()
             .contains(
                 entry("spring.application.name", "spring-boot-k8-recipes"),
                 entry("management.endpoints.enabled-by-default", "false"),
                 entry("management.endpoint.health.enabled", "true"))
             .doesNotContainEntry("cloud.kubernetes.reload.enabled", null);
+    }
 
-        props = SpringBootUtil.getPropertiesFromApplicationYamlResource("kubernetes", getClass().getResource("/util/springboot/test-application-with-multiple-profiles.yml"));
-
+    @Test
+    void getSpringBootApplicationProperties_withMultipleProfilesAndSpecificProfile(@TempDir File tempDir) throws IOException {
+        URLClassLoader cl = createClassLoader(tempDir, "/util/springboot/test-application-with-multiple-profiles.yml");
+        Properties props = SpringBootUtil.getSpringBootApplicationProperties("kubernetes", cl);
         assertThat(props)
             .containsEntry("cloud.kubernetes.reload.enabled", "true")
             .doesNotContain(
@@ -269,32 +243,6 @@ class SpringBootUtilTest {
 
         // Then
         assertThat(result).isFalse();
-    }
-
-    @Test
-    void isLayeredJar_whenInvalidFile_thenThrowException() {
-        // When + Then
-        assertThatIllegalStateException()
-            .isThrownBy(() -> SpringBootUtil.isLayeredJar(new File("i-dont-exist.jar")))
-            .withMessage("Failure in inspecting fat jar for layers.idx file");
-    }
-
-    @Test
-    void isLayeredJar_whenJarContainsLayers_thenReturnTrue(@TempDir File temporaryFolder) throws IOException {
-        // Given
-        File jarFile = new File(temporaryFolder, "fat.jar");
-        Manifest manifest = new Manifest();
-        manifest.getMainAttributes().put(Attributes.Name.MANIFEST_VERSION, "1.0");
-        manifest.getMainAttributes().put(Attributes.Name.MAIN_CLASS, "org.example.Foo");
-        try (JarOutputStream jarOutputStream = new JarOutputStream(Files.newOutputStream(jarFile.toPath()), manifest)) {
-            jarOutputStream.putNextEntry(new JarEntry("BOOT-INF/layers.idx"));
-        }
-
-        // When
-        boolean result = SpringBootUtil.isLayeredJar(jarFile);
-
-        // Then
-        assertThat(result).isTrue();
     }
 
     @Test
@@ -439,5 +387,15 @@ class SpringBootUtilTest {
 
         // Then
         assertThat(nativeArtifactFound).hasName("sample");
+    }
+
+    static URLClassLoader createClassLoader(File temporaryFolder, String resource) throws IOException {
+        File applicationProp =  new File(Objects.requireNonNull(SpringBootUtilTest.class.getResource(resource)).getPath());
+        File classesInTarget = new File(new File(temporaryFolder, "target"), "classes");
+        FileUtil.createDirectory(classesInTarget);
+        File applicationPropertiesInsideTarget = new File(classesInTarget, "application." +
+          applicationProp.getName().substring(applicationProp.getName().lastIndexOf(".") + 1));
+        FileUtils.copyFile(applicationProp, applicationPropertiesInsideTarget);
+        return ClassUtil.createClassLoader(Arrays.asList(classesInTarget.getAbsolutePath(), applicationProp.getAbsolutePath()));
     }
 }

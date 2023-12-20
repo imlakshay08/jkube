@@ -20,7 +20,18 @@ Usage:
 # ./scripts/changelog.sh semanticVersionNumber [linkLabelStartNumber]
 ./scripts/extract-changelog-for-version.sh 1.3.37 5
 ```
-### 1.15-SNAPSHOT
+### 1.16-SNAPSHOT
+* Fix #2257: Provide guidance when the final project packaged file is not found in Quarkus projeicts
+* Fix #1690: Base images based on ubi9
+* Fix #2070: build goals/tasks log warning if user forgets to run package/build goal/task
+* Fix #2390: support for all missing Chart.yaml fields
+* Fix #2444: Add support for Spring Boot application properties placeholders
+* Fix #2456: Add utility class to decompress archive files
+* Fix #2472: Support for Helm Chart.yaml appVersion field defaulting to project version
+* Fix #2474: Remove Docker-related classes providing  unused functionality
+* Fix #2477: Support for Spring Boot 3.2.0 (and newer) layered jar format
+
+### 1.15.0 (2023-11-10)
 * Fix #2138: Support for Spring Boot Native Image
 * Fix #2186: Reuse ` io.fabric8.kubernetes.client.utils.KubernetesResourceUtil` ConfigMap utils methods
 * Fix #2200: Support for Helm `values.yaml` fragments
@@ -34,7 +45,10 @@ Usage:
 * Fix #2400: Helm supports complex values in `values.yaml` fragments (such as annotations or arrays)
 * Fix #2414: OpenShift Gradle Plugin picks up `jkube.build.pushSecret` property
 * Fix #2417: Don't pass Invalid port in host headers for Helm OCI push
+* Fix #2419: Fix `Fabric8HttpUtil.extractAuthenticationChallengeIntoMap` www-authenticate header parsing logic
 * Fix #2425: Bump JKube Base images to 0.0.20
+* Fix #2433: Bump default native base image to `registry.access.redhat.com/ubi9/ubi-minimal:9.3`
+* Fix #2436: Debug functionality works with Spring Boot Layered JARs
 
 _**Note**_:
 - Container Images generated using jkube opinionated defaults no longer contain full timestamp in `org.label-schema.build-date` label. The label contains the build date in the format `yyyy-MM-dd`.

@@ -20,7 +20,7 @@
   <parent>
     <groupId>org.eclipse.jkube</groupId>
     <artifactId>jkube</artifactId>
-    <version>1.15-SNAPSHOT</version>
+    <version>1.16-SNAPSHOT</version>
     <relativePath>../../pom.xml</relativePath>
   </parent>
 
@@ -64,8 +64,8 @@
     <version.ow2.asm>9.5</version.ow2.asm>
 
     <!-- =======================================================  -->
-    <version.image.jkube-images>0.0.20</version.image.jkube-images>
-    <version.image.ubi-minimal>8.7</version.image.ubi-minimal>
+    <version.image.jkube-images>0.0.21</version.image.jkube-images>
+    <version.image.ubi-minimal>9.3</version.image.ubi-minimal>
     <!-- === Java base image versions for docker, s2i (istag == s2i) -->
     <!-- Upstream -->
     <version.image.java.upstream.docker>${version.image.jkube-images}</version.image.java.upstream.docker>
@@ -100,18 +100,18 @@
     <image.java11.upstream.istag>jkube-java-11:${version.image.java.upstream.s2i}</image.java11.upstream.istag>
 
     <!-- Helidon -->
-    <image.helidon-native.upstream.s2i>registry.access.redhat.com/ubi8/ubi-minimal:${version.image.ubi-minimal}</image.helidon-native.upstream.s2i>
-    <image.helidon-native.upstream.docker>registry.access.redhat.com/ubi8/ubi-minimal:${version.image.ubi-minimal}</image.helidon-native.upstream.docker>
-    <image.helidon-native.upstream.istag>registry.access.redhat.com/ubi8/ubi-minimal:${version.image.ubi-minimal}</image.helidon-native.upstream.istag>
+    <image.helidon-native.upstream.s2i>registry.access.redhat.com/ubi9/ubi-minimal:${version.image.ubi-minimal}</image.helidon-native.upstream.s2i>
+    <image.helidon-native.upstream.docker>registry.access.redhat.com/ubi9/ubi-minimal:${version.image.ubi-minimal}</image.helidon-native.upstream.docker>
+    <image.helidon-native.upstream.istag>registry.access.redhat.com/ubi9/ubi-minimal:${version.image.ubi-minimal}</image.helidon-native.upstream.istag>
 
     <!-- SpringBoot -->
-    <image.springboot-native.upstream.s2i>registry.access.redhat.com/ubi8/ubi-minimal:${version.image.ubi-minimal}</image.springboot-native.upstream.s2i>
-    <image.springboot-native.upstream.docker>registry.access.redhat.com/ubi8/ubi-minimal:${version.image.ubi-minimal}</image.springboot-native.upstream.docker>
-    <image.springboot-native.upstream.istag>registry.access.redhat.com/ubi8/ubi-minimal:${version.image.ubi-minimal}</image.springboot-native.upstream.istag>
+    <image.springboot-native.upstream.s2i>registry.access.redhat.com/ubi9/ubi-minimal:${version.image.ubi-minimal}</image.springboot-native.upstream.s2i>
+    <image.springboot-native.upstream.docker>registry.access.redhat.com/ubi9/ubi-minimal:${version.image.ubi-minimal}</image.springboot-native.upstream.docker>
+    <image.springboot-native.upstream.istag>registry.access.redhat.com/ubi9/ubi-minimal:${version.image.ubi-minimal}</image.springboot-native.upstream.istag>
 
     <!-- Quarkus -->
     <image.quarkus-native.upstream.s2i>quay.io/quarkus/ubi-quarkus-native-binary-s2i:1.0</image.quarkus-native.upstream.s2i>
-    <image.quarkus-native.upstream.docker>registry.access.redhat.com/ubi8/ubi-minimal:${version.image.ubi-minimal}</image.quarkus-native.upstream.docker>
+    <image.quarkus-native.upstream.docker>registry.access.redhat.com/ubi9/ubi-minimal:${version.image.ubi-minimal}</image.quarkus-native.upstream.docker>
     <image.quarkus-native.upstream.istag>quay.io/quarkus/ubi-quarkus-native-binary-s2i:1.0</image.quarkus-native.upstream.istag>
 
     <!-- karaf -->
@@ -711,13 +711,6 @@
       </dependency>
 
       <dependency>
-        <groupId>org.jmockit</groupId>
-        <artifactId>jmockit</artifactId>
-        <version>${version.jmockit}</version>
-        <scope>test</scope>
-      </dependency>
-
-      <dependency>
         <groupId>org.mockito</groupId>
         <artifactId>mockito-core</artifactId>
         <version>${version.mockito}</version>
@@ -871,20 +864,10 @@
           <groupId>org.apache.maven.plugins</groupId>
           <artifactId>maven-surefire-plugin</artifactId>
           <configuration>
-            <argLine>
-              -javaagent:"${settings.localRepository}/org/jmockit/jmockit/${version.jmockit}/jmockit-${version.jmockit}.jar"
-            </argLine>
             <environmentVariables>
               <LC_ALL>en_EN.UTF-8</LC_ALL>
            </environmentVariables>
           </configuration>
-          <dependencies>
-            <dependency>
-              <groupId>org.jmockit</groupId>
-              <artifactId>jmockit</artifactId>
-              <version>${version.jmockit}</version>
-            </dependency>
-          </dependencies>
         </plugin>
 
         <plugin>

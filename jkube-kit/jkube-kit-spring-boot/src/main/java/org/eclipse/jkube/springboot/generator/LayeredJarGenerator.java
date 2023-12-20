@@ -15,7 +15,6 @@ package org.eclipse.jkube.springboot.generator;
 
 import org.eclipse.jkube.generator.api.GeneratorConfig;
 import org.eclipse.jkube.generator.api.GeneratorContext;
-import org.eclipse.jkube.kit.common.Arguments;
 import org.eclipse.jkube.kit.common.Assembly;
 import org.eclipse.jkube.kit.common.AssemblyConfiguration;
 import org.eclipse.jkube.kit.common.AssemblyFileSet;
@@ -23,7 +22,6 @@ import org.eclipse.jkube.springboot.SpringBootLayeredJar;
 
 import java.io.File;
 import java.util.ArrayList;
-import java.util.Arrays;
 import java.util.List;
 import java.util.Map;
 import java.util.function.Function;
@@ -32,7 +30,6 @@ import static org.eclipse.jkube.kit.common.util.FileUtil.getRelativePath;
 
 public class LayeredJarGenerator extends AbstractSpringBootNestedGenerator {
 
-  private static final String MAIN_CLASS = "org.springframework.boot.loader.JarLauncher";
   private final SpringBootLayeredJar springBootLayeredJar;
 
   public LayeredJarGenerator(GeneratorContext generatorContext, GeneratorConfig generatorConfig, File layeredJar) {
@@ -41,16 +38,9 @@ public class LayeredJarGenerator extends AbstractSpringBootNestedGenerator {
   }
 
   @Override
-  public Arguments getBuildEntryPoint() {
-    return Arguments.builder()
-        .exec(Arrays.asList("java", MAIN_CLASS))
-        .build();
-  }
-
-  @Override
   public Map<String, String> getEnv(Function<Boolean, Map<String, String>> javaExecEnvSupplier, boolean prePackagePhase) {
     final Map<String, String> res = super.getEnv(javaExecEnvSupplier, prePackagePhase);
-    res.put("JAVA_MAIN_CLASS", MAIN_CLASS);
+    res.put("JAVA_MAIN_CLASS", springBootLayeredJar.getMainClass());
     return res;
   }
 

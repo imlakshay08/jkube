@@ -21,7 +21,7 @@
 
   <groupId>org.eclipse.jkube</groupId>
   <artifactId>jkube</artifactId>
-  <version>1.15-SNAPSHOT</version>
+  <version>1.16-SNAPSHOT</version>
   <packaging>pom</packaging>
   <description>Eclipse JKube</description>
   <name>Eclipse JKube</name>
@@ -101,7 +101,6 @@
     <version.guava>31.1-jre</version.guava>
     <version.jackson>2.15.2</version.jackson>
     <version.jacoco>0.8.10</version.jacoco>
-    <version.jmockit>1.49</version.jmockit>
     <version.json-smart>2.5.0</version.json-smart> <!-- Transitive dependency  required by citrus -->
     <version.junit5>5.10.0</version.junit5>
     <version.kubernetes-client>6.9.2</version.kubernetes-client>
@@ -126,7 +125,7 @@
     <version.slf4j-api>1.7.36</version.slf4j-api>
     <version.sonar-maven-plugin>3.9.1.2184</version.sonar-maven-plugin>
     <version.sshd>2.9.2</version.sshd>
-    <project.build.outputTimestamp>2023-08-31T09:20:48Z</project.build.outputTimestamp>
+    <project.build.outputTimestamp>2023-11-10T09:56:04Z</project.build.outputTimestamp>
     <asciidoctor.outputHtmlDirectory>${project.build.directory}/generated-docs</asciidoctor.outputHtmlDirectory>
   </properties>
 

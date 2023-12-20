@@ -14,14 +14,12 @@
 package org.eclipse.jkube.kit.common.util;
 
 import java.io.File;
-import java.io.IOException;
 import java.net.URL;
 import java.net.URLClassLoader;
 import java.util.Collections;
 import java.util.Map;
 import java.util.Optional;
 import java.util.Properties;
-import java.util.jar.JarFile;
 
 import org.eclipse.jkube.kit.common.JavaProject;
 import org.eclipse.jkube.kit.common.Plugin;
@@ -40,6 +38,10 @@ public class SpringBootUtil {
     public static final String SPRING_BOOT_GRADLE_PLUGIN_ARTIFACT_ID = "org.springframework.boot.gradle.plugin";
     public static final String DEV_TOOLS_REMOTE_SECRET = "spring.devtools.remote.secret";
     public static final String DEV_TOOLS_REMOTE_SECRET_ENV = "SPRING_DEVTOOLS_REMOTE_SECRET";
+
+    private static final String PLACEHOLDER_PREFIX = "${";
+    private static final String PLACEHOLDER_SUFFIX = "}";
+    private static final String VALUE_SEPARATOR = ":";
 
     private SpringBootUtil() {}
 
@@ -66,23 +68,10 @@ public class SpringBootUtil {
         URL ymlResource = compileClassLoader.findResource("application.yml");
         URL propertiesResource = compileClassLoader.findResource("application.properties");
 
-        Properties props = getPropertiesFromApplicationYamlResource(springActiveProfile, ymlResource);
+        Properties props = YamlUtil.getPropertiesFromYamlResource(springActiveProfile, ymlResource);
         props.putAll(getPropertiesFromResource(propertiesResource));
-        return props;
-    }
-
-    public static Properties getPropertiesFromApplicationYamlResource(String springActiveProfile, URL ymlResource) {
-        return YamlUtil.getPropertiesFromYamlResource(springActiveProfile, ymlResource);
-    }
-
-    /**
-     * Determine the spring-boot devtools version for the current project
-     *
-     * @param mavenProject Maven project
-     * @return devtools version or null
-     */
-    public static Optional<String> getSpringBootDevToolsVersion(JavaProject mavenProject) {
-        return getSpringBootVersion(mavenProject);
+        return new SpringBootPropertyPlaceholderHelper(PLACEHOLDER_PREFIX, PLACEHOLDER_SUFFIX, VALUE_SEPARATOR, true)
+        .replaceAllPlaceholders(props);
     }
 
     /**
@@ -95,6 +84,11 @@ public class SpringBootUtil {
         return Optional.ofNullable(JKubeProjectUtil.getAnyDependencyVersionWithGroupId(javaProject, SPRING_BOOT_GROUP_ID));
     }
 
+    /**
+     * Returns the currently active spring-boot profile or null if not found.
+     * @param project the JavaProject for which to search the active profile.
+     * @return the currently active spring-boot profile or null if not found.
+     */
     public static String getSpringBootActiveProfile(JavaProject project) {
         if (project != null && project.getProperties() != null
               && project.getProperties().get("spring.profiles.active") != null) {
@@ -103,6 +97,11 @@ public class SpringBootUtil {
         return null;
     }
 
+    /**
+     * Returns a Map containing the Spring Boot configuration for the applicable plugin (Maven or Gradle).
+     * @param javaProject the JavaProject for which to search the Spring Boot plugin configuration.
+     * @return a Map containing the Spring Boot configuration or an empty Map if no plugin is found.
+     */
     public static Map<String, Object> getSpringBootPluginConfiguration(JavaProject javaProject) {
         Plugin mavenPlugin = JKubeProjectUtil.getPlugin(javaProject, SPRING_BOOT_MAVEN_PLUGIN_ARTIFACT_ID);
         if (mavenPlugin != null) {
@@ -123,14 +122,6 @@ public class SpringBootUtil {
             .orElse(false);
     }
 
-    public static boolean isLayeredJar(File fatJar) {
-        try (JarFile jarFile = new JarFile(fatJar)) {
-            return jarFile.getEntry("BOOT-INF/layers.idx") != null;
-        } catch (IOException ioException) {
-            throw new IllegalStateException("Failure in inspecting fat jar for layers.idx file", ioException);
-        }
-    }
-
     public static Plugin getNativePlugin(JavaProject project) {
         Plugin plugin = JKubeProjectUtil.getPlugin(project, "org.graalvm.buildtools", "native-maven-plugin");
         if (plugin != null) {
@@ -139,6 +130,12 @@ public class SpringBootUtil {
         return JKubeProjectUtil.getPlugin(project, "org.graalvm.buildtools.native", "org.graalvm.buildtools.native.gradle.plugin");
     }
 
+    /**
+     * Returns the native executable artifact produced file by the Spring Boot build or null if not found.
+     * @param project the JavaProject for which to search the native executable artifact
+     * @return the native executable artifact produced file by the Spring Boot build or null if not found
+     * @throws IllegalStateException if more than one native executable artifact is found
+     */
     public static File findNativeArtifactFile(JavaProject project) {
         for (String location : new String[] {"", "native/nativeCompile/"}) {
             File nativeArtifactDir = new File(project.getBuildDirectory(), location);

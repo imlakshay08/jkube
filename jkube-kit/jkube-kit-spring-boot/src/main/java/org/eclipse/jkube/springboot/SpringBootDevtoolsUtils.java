@@ -13,10 +13,11 @@
  */
 package org.eclipse.jkube.springboot;
 
-import com.google.common.base.Strings;
 import org.apache.commons.io.FileUtils;
+import org.apache.commons.lang3.StringUtils;
 import org.eclipse.jkube.generator.javaexec.FatJarDetector;
 import org.eclipse.jkube.kit.common.JavaProject;
+import org.eclipse.jkube.kit.common.util.FileUtil;
 import org.eclipse.jkube.kit.common.util.JKubeProjectUtil;
 import org.eclipse.jkube.kit.common.util.SpringBootUtil;
 
@@ -48,7 +49,7 @@ public class SpringBootDevtoolsUtils {
         SpringBootUtil.getSpringBootActiveProfile(project),
         JKubeProjectUtil.getClassLoader(project));
     String remoteSecret = properties.getProperty(DEV_TOOLS_REMOTE_SECRET);
-    if (Strings.isNullOrEmpty(remoteSecret)) {
+    if (StringUtils.isBlank(remoteSecret)) {
       addSecretTokenToApplicationProperties(project);
       return false;
     }
@@ -66,10 +67,15 @@ public class SpringBootDevtoolsUtils {
 
   private static void appendSecretTokenToFile(JavaProject project, String path, String token) {
     File file = new File(project.getBaseDirectory(), path);
-    boolean dirCreated = file.getParentFile().mkdirs();
-    if (!dirCreated) {
+    try {
+      FileUtil.createDirectory(file.getParentFile());
+    } catch (IOException ioException) {
       throw new IllegalStateException("Failure in creating directory " + file.getParentFile().getAbsolutePath());
     }
+    writeRemoteSecretToFile(file, token);
+  }
+
+  private static void writeRemoteSecretToFile(File file, String token) {
     String text = String.format("%s" +
             "# Remote secret added by jkube-kit-plugin\n" +
             "%s=%s\n",
@@ -180,8 +186,8 @@ public class SpringBootDevtoolsUtils {
     return fatJarDetectResult.getArchiveFile();
   }
 
-  private static File getSpringBootDevToolsJar(JavaProject project) {
-    String version = SpringBootUtil.getSpringBootDevToolsVersion(project)
+  public static File getSpringBootDevToolsJar(JavaProject project) {
+    String version = SpringBootUtil.getSpringBootVersion(project)
         .orElseThrow(() -> new IllegalStateException("Unable to find the spring-boot version"));
     final File devToolsJar = JKubeProjectUtil.resolveArtifact(project, SPRING_BOOT_GROUP_ID, SPRING_BOOT_DEVTOOLS_ARTIFACT_ID, version, "jar");
     if (!devToolsJar.exists()) {

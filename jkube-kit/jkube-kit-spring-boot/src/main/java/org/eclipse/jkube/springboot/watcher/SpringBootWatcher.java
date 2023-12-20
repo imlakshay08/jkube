@@ -30,7 +30,6 @@ import java.util.stream.Collectors;
 import java.util.stream.Stream;
 
 import io.fabric8.kubernetes.client.NamespacedKubernetesClient;
-import org.eclipse.jkube.kit.common.JavaProject;
 import org.eclipse.jkube.kit.common.KitLogger;
 import org.eclipse.jkube.kit.common.PrefixedLogger;
 import org.eclipse.jkube.kit.common.util.ClassUtil;
@@ -46,7 +45,6 @@ import org.eclipse.jkube.kit.config.service.PortForwardService;
 import org.eclipse.jkube.watcher.api.BaseWatcher;
 import org.eclipse.jkube.watcher.api.WatcherContext;
 
-import com.google.common.io.Closeables;
 import io.fabric8.kubernetes.api.model.HasMetadata;
 import io.fabric8.kubernetes.api.model.LabelSelector;
 import org.apache.commons.lang3.StringUtils;
@@ -54,6 +52,7 @@ import org.apache.commons.lang3.StringUtils;
 import static org.eclipse.jkube.kit.common.util.EnvUtil.isWindows;
 import static org.eclipse.jkube.kit.common.util.SpringBootUtil.DEV_TOOLS_REMOTE_SECRET;
 import static org.eclipse.jkube.kit.common.util.SpringBootUtil.getSpringBootPluginConfiguration;
+import static org.eclipse.jkube.springboot.SpringBootDevtoolsUtils.getSpringBootDevToolsJar;
 
 public class SpringBootWatcher extends BaseWatcher {
 
@@ -138,13 +137,8 @@ public class SpringBootWatcher extends BaseWatcher {
         ) {
             classLoaders.add(projectClassLoader);
 
-            final String devToolsPath;
-            try {
-                devToolsPath = getSpringBootDevToolsJar(getContext().getBuildContext().getProject())
+            final String devToolsPath = getSpringBootDevToolsJar(getContext().getBuildContext().getProject())
                   .getCanonicalPath();
-            } catch (Exception e) {
-                throw new IllegalStateException("Failed to include devtools in the classpath: " + e, e);
-            }
             final String classPath = classLoaders.stream().flatMap(cl -> Stream.of(cl.getURLs())).map(u -> {
                 try {
                     URI uri = u.toURI();
@@ -202,8 +196,7 @@ public class SpringBootWatcher extends BaseWatcher {
         Thread printer = new Thread() {
             @Override
             public void run() {
-                BufferedReader reader = new BufferedReader(new InputStreamReader(inputStream));
-                try {
+                try (BufferedReader reader = new BufferedReader(new InputStreamReader(inputStream))) {
                     String line;
                     while ((line = reader.readLine()) != null) {
                         if (outputEnabled.get()) {
@@ -218,19 +211,12 @@ public class SpringBootWatcher extends BaseWatcher {
                     if (outputEnabled.get()) {
                         logger.error("Failed to process " + (error ? "stderr" : "stdout") + " from spring-remote process: " + e);
                     }
-                } finally {
-                    Closeables.closeQuietly(reader);
                 }
             }
         };
 
         printer.start();
         return printer;
-    }
-
-    private File getSpringBootDevToolsJar(JavaProject project) {
-        String version = SpringBootUtil.getSpringBootDevToolsVersion(project).orElseThrow(() -> new IllegalStateException("Unable to find the spring-boot version"));
-        return JKubeProjectUtil.resolveArtifact(getContext().getBuildContext().getProject(), SpringBootUtil.SPRING_BOOT_GROUP_ID, SpringBootUtil.SPRING_BOOT_DEVTOOLS_ARTIFACT_ID, version, "jar");
     }
 
     private String validateSpringBootDevtoolsSettings() {
