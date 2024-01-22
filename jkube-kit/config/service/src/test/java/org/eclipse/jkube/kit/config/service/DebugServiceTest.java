@@ -34,6 +34,7 @@ import io.fabric8.kubernetes.api.model.apps.ReplicaSet;
 import io.fabric8.kubernetes.api.model.apps.ReplicaSetBuilder;
 import io.fabric8.kubernetes.api.model.apps.ReplicaSetSpecBuilder;
 import io.fabric8.kubernetes.client.NamespacedKubernetesClient;
+import io.fabric8.kubernetes.client.dsl.NonDeletingOperation;
 import io.fabric8.kubernetes.client.server.mock.EnableKubernetesMockClient;
 import io.fabric8.kubernetes.client.server.mock.KubernetesMockServer;
 import io.fabric8.openshift.api.model.DeploymentConfig;
@@ -92,9 +93,8 @@ class DebugServiceTest {
       .clusterAccess(new ClusterAccess(ClusterConfiguration.from(kubernetesClient.getConfiguration()).build()))
       .build();
     singleThreadExecutor = Executors.newSingleThreadExecutor();
-    final ApplyService applyService = new ApplyService(serviceHub);
-    applyService.setNamespace(kubernetesClient.getNamespace());
-    debugService = new DebugService(logger, kubernetesClient, new PortForwardService(logger), applyService);
+    serviceHub.getApplyService().setNamespace(kubernetesClient.getNamespace());
+    debugService = new DebugService(logger, kubernetesClient, new PortForwardService(logger), serviceHub.getApplyService());
   }
 
   @AfterEach
@@ -169,7 +169,7 @@ class DebugServiceTest {
   void enableDebuggingWithReplicationController() {
     // Given
     final ReplicationController replicationController = initReplicationController();
-    kubernetesClient.resource(replicationController).createOrReplace();
+    kubernetesClient.resource(replicationController).createOr(NonDeletingOperation::update);
     // When
     debugService.enableDebugging(replicationController, "file.name", false);
     // Then
