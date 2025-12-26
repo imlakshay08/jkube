@@ -181,15 +181,13 @@ public class ApplyMojo extends AbstractJKubeMojo implements ManifestProvider {
               isOpenShift ? "oc" : "kubectl");
         } catch (KubernetesClientException e) {
             KubernetesResourceUtil.handleKubernetesClientException(e, this.log);
-        } catch(InterruptedException ex) {
-            Thread.currentThread().interrupt();
         } catch (Exception e) {
             throw new MojoExecutionException(e.getMessage(), e);
         }
 
     }
 
-    protected void applyEntities(final KubernetesClient kubernetes, String fileName, final Collection<HasMetadata> entities) throws InterruptedException {
+    protected void applyEntities(final KubernetesClient kubernetes, String fileName, final Collection<HasMetadata> entities) {
         applyService.applyEntities(fileName, entities);
     }
 
@@ -228,7 +226,7 @@ public class ApplyMojo extends AbstractJKubeMojo implements ManifestProvider {
         applyService.setRollingUpgradePreserveScale(isRollingUpgradePreserveScale());
         applyService.setRecreateMode(recreate);
         applyService.setNamespace(namespace);
-        applyService.setFallbackNamespace(resolveFallbackNamespace(resources, clusterAccess));
+        applyService.setFallbackNamespace(resolveFallbackNamespace(resources, clusterConfiguration));
 
         boolean openShift = OpenshiftHelper.isOpenShift(kubernetes);
         if (openShift) {

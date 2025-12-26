@@ -24,13 +24,17 @@ import org.apache.maven.settings.Settings;
 import org.eclipse.jkube.kit.common.KitLogger;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.condition.EnabledOnOs;
+import org.junit.jupiter.api.condition.OS;
 import org.junit.jupiter.api.io.TempDir;
 import org.mockito.InOrder;
 
 import java.io.File;
+import java.io.FileOutputStream;
 import java.nio.file.Path;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.Mockito.inOrder;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.spy;
@@ -101,7 +105,7 @@ class ResourceMojoTest {
     final File generatedArtifact = new File(resourceMojo.targetDir, "kubernetes.yml");
     assertThat(generatedArtifact)
       .exists()
-      .content().isEqualTo("---\napiVersion: v1\nkind: List\n");
+      .content().isEqualTo(String.format("---%napiVersion: v1%nkind: List%n"));
     verify(resourceMojo.projectHelper, times(1))
       .attachArtifact(resourceMojo.project, "yml", "kubernetes", generatedArtifact);
   }
@@ -116,11 +120,97 @@ class ResourceMojoTest {
     final File generatedArtifact = new File(resourceMojo.targetDir, "kubernetes.yml");
     assertThat(generatedArtifact)
       .exists()
-      .content().isEqualTo("---\napiVersion: v1\nkind: List\n");
+      .content().isEqualTo(String.format("---%napiVersion: v1%nkind: List%n"));
     verify(resourceMojo.projectHelper, times(1))
       .attachArtifact(resourceMojo.project, "yml", "kubernetes", generatedArtifact);
     InOrder inOrder = inOrder(kitLogger);
     inOrder.verify(kitLogger).verbose("Generating resources");
     inOrder.verify(kitLogger).verbose("Validating resources");
+  }
+
+  @Test
+  void execute_withExistingWorkDir_shouldCleanWorkDirBeforeProcessing() throws Exception {
+    // Given
+    File staleFile = new File(resourceMojo.workDir, "stale-file.yml");
+    resourceMojo.workDir.mkdirs();
+    staleFile.createNewFile();
+    assertThat(staleFile).exists();
+
+    // When
+    resourceMojo.execute();
+
+    // Then
+    assertThat(staleFile).doesNotExist();
+    final File generatedArtifact = new File(resourceMojo.targetDir, "kubernetes.yml");
+    assertThat(generatedArtifact)
+      .exists()
+      .content().isEqualTo(String.format("---%napiVersion: v1%nkind: List%n"));
+  }
+
+  @Test
+  void cleanWorkDirectory_withNonExistingWorkDir_shouldDoNothing() throws Exception {
+    // Given
+    assertThat(resourceMojo.workDir).doesNotExist();
+
+    // When
+    resourceMojo.cleanWorkDirectory();
+
+    // Then
+    assertThat(resourceMojo.workDir).doesNotExist();
+  }
+
+  @Test
+  void cleanWorkDirectory_withExistingWorkDir_shouldCleanDirectory() throws Exception {
+    // Given
+    File staleFile = new File(resourceMojo.workDir, "stale-file.yml");
+    resourceMojo.workDir.mkdirs();
+    staleFile.createNewFile();
+    assertThat(staleFile).exists();
+
+    // When
+    resourceMojo.cleanWorkDirectory();
+
+    // Then
+    assertThat(resourceMojo.workDir).exists();
+    assertThat(staleFile).doesNotExist();
+  }
+
+  @Test
+  @EnabledOnOs({OS.LINUX, OS.MAC})
+  void execute_whenCleanWorkDirectoryFails_shouldThrowException_onUnix() throws Exception {
+    // Given
+    resourceMojo.workDir.mkdirs();
+    final File subDir = new File(resourceMojo.workDir, "nested");
+    subDir.mkdirs();
+    final File nestedFile = new File(subDir, "file.txt");
+    nestedFile.createNewFile();
+    assertThat(resourceMojo.workDir.setWritable(false)).isTrue();
+
+    try {
+      // When & Then
+      assertThatThrownBy(resourceMojo::execute)
+        .isInstanceOf(MojoExecutionException.class)
+        .hasMessage("Failed to clean work directory")
+        .hasCauseInstanceOf(java.io.IOException.class);
+    } finally {
+      resourceMojo.workDir.setWritable(true);
+    }
+  }
+
+  @Test
+  @EnabledOnOs(OS.WINDOWS)
+  void execute_whenCleanWorkDirectoryFails_shouldThrowException_onWindows() throws Exception {
+    // Given
+    resourceMojo.workDir.mkdirs();
+    final File subDir = new File(resourceMojo.workDir, "nested");
+    subDir.mkdirs();
+    final File nestedFile = new File(subDir, "file.txt");
+    try (FileOutputStream lock = new FileOutputStream(nestedFile)) {
+      // When & Then
+      assertThatThrownBy(resourceMojo::execute)
+        .isInstanceOf(MojoExecutionException.class)
+        .hasMessage("Failed to clean work directory")
+        .hasCauseInstanceOf(java.io.IOException.class);
+    }
   }
 }

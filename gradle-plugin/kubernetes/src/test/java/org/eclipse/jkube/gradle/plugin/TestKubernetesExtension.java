@@ -33,6 +33,7 @@ public class TestKubernetesExtension extends KubernetesExtension {
   public String buildRecreate;
   public Boolean isForcePull;
   public Boolean isFailOnNoKubernetesJson;
+  public Boolean isSkipPush;
 
   public TestKubernetesExtension() {
     javaProject = mock(JavaProject.class, RETURNS_DEEP_STUBS);
@@ -269,6 +270,11 @@ public class TestKubernetesExtension extends KubernetesExtension {
   }
 
   @Override
+  public Property<Boolean> getVerbose() {
+    return property(Boolean.class);
+  }
+
+  @Override
   public Property<Boolean> getFailOnNoKubernetesJson() {
     return property(Boolean.class).value(isFailOnNoKubernetesJson);
   }
@@ -300,7 +306,7 @@ public class TestKubernetesExtension extends KubernetesExtension {
 
   @Override
   public Property<Boolean> getSkipPush() {
-    return property(Boolean.class);
+    return property(Boolean.class).value(isSkipPush);
   }
 
   @Override

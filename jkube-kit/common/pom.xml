@@ -20,7 +20,7 @@
   <parent>
     <groupId>org.eclipse.jkube</groupId>
     <artifactId>jkube-kit-parent</artifactId>
-    <version>1.16-SNAPSHOT</version>
+    <version>1.19-SNAPSHOT</version>
     <relativePath>../parent/pom.xml</relativePath>
   </parent>
 
@@ -58,11 +58,6 @@
     <dependency>
       <groupId>com.google.code.gson</groupId>
       <artifactId>gson</artifactId>
-    </dependency>
-
-    <dependency>
-      <groupId>com.google.guava</groupId>
-      <artifactId>guava</artifactId>
     </dependency>
 
     <dependency>
@@ -146,6 +141,11 @@
     <dependency>
       <groupId>com.networknt</groupId>
       <artifactId>json-schema-validator</artifactId>
+    </dependency>
+    <dependency>
+      <groupId>com.marcnuri.helm-java</groupId>
+      <artifactId>helm-java</artifactId>
+      <scope>test</scope>
     </dependency>
 
   </dependencies>

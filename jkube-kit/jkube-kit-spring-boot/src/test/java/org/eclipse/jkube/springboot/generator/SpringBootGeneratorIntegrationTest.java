@@ -24,12 +24,14 @@ import org.eclipse.jkube.kit.common.Dependency;
 import org.eclipse.jkube.kit.common.JavaProject;
 import org.eclipse.jkube.kit.common.KitLogger;
 import org.eclipse.jkube.kit.common.Plugin;
+import org.eclipse.jkube.kit.common.util.SpringBootUtilTest;
 import org.eclipse.jkube.kit.config.image.ImageConfiguration;
 import org.eclipse.jkube.kit.config.image.build.BuildConfiguration;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Nested;
 import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.condition.OS;
 import org.junit.jupiter.api.io.TempDir;
 
 import java.io.File;
@@ -159,7 +161,8 @@ class SpringBootGeneratorIntegrationTest {
       // Then
       assertThat(images)
         .singleElement()
-        .extracting("buildConfiguration.ports").asList()
+        .extracting("buildConfiguration.ports")
+        .asInstanceOf(InstanceOfAssertFactories.list(String.class))
         .contains("8080");
     }
     @Test
@@ -170,7 +173,8 @@ class SpringBootGeneratorIntegrationTest {
         .customize(new ArrayList<>(), false);
       // Then
       assertThat(images).singleElement()
-        .extracting("buildConfiguration.ports").asList()
+        .extracting("buildConfiguration.ports")
+        .asInstanceOf(InstanceOfAssertFactories.list(String.class))
         .contains("8778");
     }
 
@@ -182,7 +186,8 @@ class SpringBootGeneratorIntegrationTest {
         .customize(new ArrayList<>(), false);
       // Then
       assertThat(images).singleElement()
-        .extracting("buildConfiguration.ports").asList()
+        .extracting("buildConfiguration.ports")
+        .asInstanceOf(InstanceOfAssertFactories.list(String.class))
         .contains("9779");
     }
 
@@ -216,12 +221,15 @@ class SpringBootGeneratorIntegrationTest {
         .hasFieldOrPropertyWithValue("targetDir", "/deployments")
         .hasFieldOrPropertyWithValue("excludeFinalOutputArtifact", true)
         .extracting(AssemblyConfiguration::getLayers)
-        .asList().hasSize(1)
+        .asInstanceOf(InstanceOfAssertFactories.list(Assembly.class))
+        .hasSize(1)
         .satisfies(layers -> assertThat(layers).element(0).asInstanceOf(InstanceOfAssertFactories.type(Assembly.class))
           .extracting(Assembly::getFileSets)
-          .asList().element(2)
+          .asInstanceOf(InstanceOfAssertFactories.list(AssemblyFileSet.class))
+          .element(2)
           .hasFieldOrPropertyWithValue("outputDirectory", new File("."))
-          .extracting("includes").asList()
+          .extracting("includes")
+          .asInstanceOf(InstanceOfAssertFactories.list(String.class))
           .containsExactly("fat.jar"));
     }
 
@@ -258,7 +266,8 @@ class SpringBootGeneratorIntegrationTest {
       // Then
       assertThat(images)
         .singleElement()
-        .extracting("buildConfiguration.ports").asList()
+        .extracting("buildConfiguration.ports")
+        .asInstanceOf(InstanceOfAssertFactories.list(String.class))
         .contains("8081");
     }
 
@@ -340,7 +349,7 @@ class SpringBootGeneratorIntegrationTest {
         .hasFieldOrPropertyWithValue("targetDir", "/deployments")
         .hasFieldOrPropertyWithValue("excludeFinalOutputArtifact", true)
         .extracting(AssemblyConfiguration::getLayers)
-        .asList()
+        .asInstanceOf(InstanceOfAssertFactories.list(Assembly.class))
         .hasSize(5)
         .contains(
           Assembly.builder()
@@ -421,7 +430,13 @@ class SpringBootGeneratorIntegrationTest {
           .build()
         )
         .build();
-      File nativeArtifactFile = Files.createFile(targetDir.toPath().resolve("native-binary-artifact")).toFile();
+      File nativeArtifactFile;
+      if (OS.WINDOWS.isCurrentOs()) {
+        nativeArtifactFile = SpringBootUtilTest.createMinimalWindowsPEFile(targetDir.toPath().resolve("native-binary-artifact").toFile());
+      }
+      else {
+        nativeArtifactFile = Files.createFile(targetDir.toPath().resolve("native-binary-artifact")).toFile();
+      }
       assertThat(nativeArtifactFile.setExecutable(true)).isTrue();
     }
 
@@ -440,13 +455,16 @@ class SpringBootGeneratorIntegrationTest {
           .hasFieldOrPropertyWithValue("targetDir", "/")
           .hasFieldOrPropertyWithValue("excludeFinalOutputArtifact", true)
           .extracting(AssemblyConfiguration::getLayers)
-          .asList().hasSize(1)
+          .asInstanceOf(InstanceOfAssertFactories.list(Assembly.class))
+          .hasSize(1)
           .satisfies(layers -> assertThat(layers).element(0).asInstanceOf(InstanceOfAssertFactories.type(Assembly.class))
               .extracting(Assembly::getFileSets)
-              .asList().element(2)
+              .asInstanceOf(InstanceOfAssertFactories.list(AssemblyFileSet.class))
+              .element(2)
               .hasFieldOrPropertyWithValue("outputDirectory", new File("."))
               .hasFieldOrPropertyWithValue("fileMode", "0755")
-              .extracting("includes").asList()
+              .extracting("includes")
+              .asInstanceOf(InstanceOfAssertFactories.list(String.class))
               .containsExactly("native-binary-artifact"));
     }
 

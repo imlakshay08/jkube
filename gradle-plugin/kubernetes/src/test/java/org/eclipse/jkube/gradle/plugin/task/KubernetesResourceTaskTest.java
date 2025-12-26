@@ -14,6 +14,7 @@
 package org.eclipse.jkube.gradle.plugin.task;
 
 import java.io.File;
+import java.io.FileOutputStream;
 import java.io.IOException;
 import java.nio.charset.StandardCharsets;
 import java.nio.file.Paths;
@@ -27,9 +28,12 @@ import org.apache.commons.io.FileUtils;
 import org.gradle.api.provider.Property;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.condition.EnabledOnOs;
+import org.junit.jupiter.api.condition.OS;
 import org.junit.jupiter.api.extension.RegisterExtension;
 
-import static org.assertj.core.api.AssertionsForInterfaceTypes.assertThat;
+import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.Mockito.when;
 
 class KubernetesResourceTaskTest {
@@ -38,7 +42,7 @@ class KubernetesResourceTaskTest {
   public final TaskEnvironmentExtension taskEnvironment = new TaskEnvironmentExtension();
 
   @BeforeEach
-  void setUp() throws IOException {
+  void setUp() {
     when(taskEnvironment.project.getExtensions().getByType(KubernetesExtension.class))
         .thenReturn(new TestKubernetesExtension());
   }
@@ -98,6 +102,73 @@ class KubernetesResourceTaskTest {
     // Then
     assertThat(taskEnvironment.getRoot().toPath().resolve("build").resolve("jkube"))
         .doesNotExist();
+  }
+
+  @Test
+  void runTask_withExistingWorkDir_shouldCleanWorkDirBeforeProcessing() throws IOException {
+    // Given
+    final File workDir = taskEnvironment.getRoot().toPath().resolve("build").resolve("jkube-temp").toFile();
+    FileUtils.forceMkdir(workDir);
+    final File staleFile = new File(workDir, "stale-file.yml");
+    FileUtils.write(staleFile, "stale: content", StandardCharsets.UTF_8);
+    assertThat(staleFile).exists();
+    withResourceFragment("configmap.yml", "key: value");
+    KubernetesResourceTask resourceTask = new KubernetesResourceTask(KubernetesExtension.class);
+
+    // When
+    resourceTask.runTask();
+
+    // Then
+    assertThat(staleFile).doesNotExist();
+    assertThat(taskEnvironment.getRoot().toPath()
+      .resolve(Paths.get("build", "classes", "java", "main", "META-INF", "jkube", "kubernetes.yml")))
+      .exists();
+  }
+
+  @Test
+  @EnabledOnOs({OS.LINUX, OS.MAC})
+  void runTask_whenCleanWorkDirectoryFails_shouldThrowException_onUnix() throws Exception {
+    // Given
+    final File workDir = taskEnvironment.getRoot().toPath().resolve("build").resolve("jkube-temp").toFile();
+    FileUtils.forceMkdir(workDir);
+    final File subDir = new File(workDir, "nested");
+    FileUtils.forceMkdir(subDir);
+    final File nestedFile = new File(subDir, "file.txt");
+    FileUtils.write(nestedFile, "content", StandardCharsets.UTF_8);
+    assertThat(workDir.setWritable(false)).isTrue();
+
+    KubernetesResourceTask resourceTask = new KubernetesResourceTask(KubernetesExtension.class);
+
+    try {
+      // When & Then
+      assertThatThrownBy(resourceTask::runTask)
+        .isInstanceOf(IllegalStateException.class)
+        .hasMessage("Failed to clean work directory")
+        .hasCauseInstanceOf(IOException.class);
+    } finally {
+      workDir.setWritable(true);
+    }
+  }
+
+  @Test
+  @EnabledOnOs(OS.WINDOWS)
+  void runTask_whenCleanWorkDirectoryFails_shouldThrowException_onWindows() throws Exception {
+    // Given
+    final File workDir = taskEnvironment.getRoot().toPath().resolve("build").resolve("jkube-temp").toFile();
+    FileUtils.forceMkdir(workDir);
+    final File subDir = new File(workDir, "nested");
+    FileUtils.forceMkdir(subDir);
+    final File nestedFile = new File(subDir, "file.txt");
+    FileUtils.write(nestedFile, "content", StandardCharsets.UTF_8);
+
+    try (FileOutputStream lock = new FileOutputStream(nestedFile)) {
+      KubernetesResourceTask resourceTask = new KubernetesResourceTask(KubernetesExtension.class);
+      // When & Then
+      assertThatThrownBy(resourceTask::runTask)
+        .isInstanceOf(IllegalStateException.class)
+        .hasMessage("Failed to clean work directory")
+        .hasCauseInstanceOf(IOException.class);
+    }
   }
 
   private void withProperties(Map<String, ?> properties) {

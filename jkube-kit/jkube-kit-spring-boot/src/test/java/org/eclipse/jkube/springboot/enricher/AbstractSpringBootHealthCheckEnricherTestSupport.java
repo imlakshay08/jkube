@@ -13,13 +13,16 @@
  */
 package org.eclipse.jkube.springboot.enricher;
 
+import java.io.ByteArrayOutputStream;
 import java.io.IOException;
 import java.io.OutputStream;
+import java.io.PrintStream;
 import java.net.URL;
 import java.net.URLClassLoader;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.Collections;
+import java.util.Objects;
 import java.util.Properties;
 import java.util.TreeMap;
 
@@ -30,12 +33,16 @@ import org.eclipse.jkube.kit.common.KitLogger;
 import org.eclipse.jkube.kit.config.resource.ProcessorConfig;
 import org.eclipse.jkube.kit.enricher.api.JKubeEnricherContext;
 import org.eclipse.jkube.kit.common.util.ProjectClassLoaders;
+import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
+import org.junit.jupiter.api.DisplayName;
+import org.junit.jupiter.api.Nested;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.io.TempDir;
 
 import static org.assertj.core.api.Assertions.assertThat;
-import static org.eclipse.jkube.springboot.enricher.SpringBootHealthCheckEnricher.REQUIRED_CLASSES;
+import static org.eclipse.jkube.springboot.enricher.SpringBootHealthCheckEnricher.REQUIRED_CLASSES_SPRING_BOOT;
+import static org.eclipse.jkube.springboot.enricher.SpringBootHealthCheckEnricher.REQUIRED_CLASSES_SPRING_BOOT_4;
 import static org.junit.jupiter.api.Assumptions.assumeFalse;
 import static org.mockito.Mockito.RETURNS_DEEP_STUBS;
 import static org.mockito.Mockito.mock;
@@ -49,6 +56,7 @@ import static org.mockito.Mockito.when;
  */
 public abstract class AbstractSpringBootHealthCheckEnricherTestSupport {
     private Properties props;
+    private ByteArrayOutputStream out;
 
     protected JKubeEnricherContext context;
 
@@ -57,9 +65,10 @@ public abstract class AbstractSpringBootHealthCheckEnricherTestSupport {
     @BeforeEach
     void init(@TempDir Path project) throws IOException {
         props = new Properties();
+        out = new ByteArrayOutputStream();
         projectClassLoaders = mock(ProjectClassLoaders.class, RETURNS_DEEP_STUBS);
         context = spy(JKubeEnricherContext.builder()
-          .log(new KitLogger.SilentLogger())
+          .log(new KitLogger.PrintStreamLogger(new PrintStream(out)))
           .project(JavaProject.builder()
             .properties(props)
             .baseDirectory(project.toFile())
@@ -83,10 +92,27 @@ public abstract class AbstractSpringBootHealthCheckEnricherTestSupport {
     }
 
     @Test
+    void constructorShouldLogSpringBootApplicationConfigPath() {
+        // Given
+        context = context.toBuilder()
+          .project(context.getProject().toBuilder()
+            .compileClassPathElement(Objects.requireNonNull(getClass().getResource("/port-override-application-properties")).getPath())
+            .build())
+          .build();
+        // When
+        SpringBootHealthCheckEnricher springBootHealthCheckEnricher = new SpringBootHealthCheckEnricher(context);
+        // Then
+        assertThat(springBootHealthCheckEnricher).isNotNull();
+        assertThat(out.toString())
+          .contains("jkube-healthcheck-spring-boot: Spring Boot Application Config loaded from: " +
+            AbstractSpringBootHealthCheckEnricherTestSupport.class.getResource("/port-override-application-properties/application.properties"));
+    }
+
+    @Test
     void zeroConfig() {
         SpringBootHealthCheckEnricher enricher = new SpringBootHealthCheckEnricher(context);
 
-        Probe probe = enricher.buildProbe(10, null, null, 3, 1);
+        Probe probe = enricher.buildProbe(10, null, null, 3, 1,null);
         assertHTTPGetPathAndPort(probe, getActuatorDefaultBasePath() + "/health", 8080);
     }
 
@@ -96,7 +122,7 @@ public abstract class AbstractSpringBootHealthCheckEnricherTestSupport {
         writeProps();
 
         Probe probe = new SpringBootHealthCheckEnricher(context)
-          .buildProbe(10, null, null, 3, 1);
+          .buildProbe(10, null, null, 3, 1,null);
         assertHTTPGetPathAndPort(probe, getActuatorDefaultBasePath() + "/health", 8282);
     }
 
@@ -108,7 +134,7 @@ public abstract class AbstractSpringBootHealthCheckEnricherTestSupport {
         writeProps();
 
         Probe probe = new SpringBootHealthCheckEnricher(context)
-          .buildProbe(10, null, null, 3, 1);
+          .buildProbe(10, null, null, 3, 1,null);
         assertHTTPGetPathAndPort(probe, getActuatorDefaultBasePath() + "/health", 8383);
     }
 
@@ -122,7 +148,7 @@ public abstract class AbstractSpringBootHealthCheckEnricherTestSupport {
         writeProps();
 
         Probe probe = new SpringBootHealthCheckEnricher(context)
-          .buildProbe(10, null, null, 3, 1);
+          .buildProbe(10, null, null, 3, 1,null);
         assertHTTPGetPathAndPort(probe, getActuatorDefaultBasePath() + "/health", 8383);
     }
 
@@ -138,7 +164,7 @@ public abstract class AbstractSpringBootHealthCheckEnricherTestSupport {
         writeProps();
 
         Probe probe = new SpringBootHealthCheckEnricher(context)
-          .buildProbe(10, null, null, 3, 1);
+          .buildProbe(10, null, null, 3, 1,null);
         assertHTTPGetPathAndPort(probe, "/actuator-base-path/health", 8383);
     }
 
@@ -153,7 +179,7 @@ public abstract class AbstractSpringBootHealthCheckEnricherTestSupport {
         writeProps();
 
         Probe probe = new SpringBootHealthCheckEnricher(context)
-          .buildProbe(10, null, null, 3, 1);
+          .buildProbe(10, null, null, 3, 1, null);
         assertHTTPGetPathAndPort(probe, "/health", 8383);
     }
 
@@ -170,7 +196,7 @@ public abstract class AbstractSpringBootHealthCheckEnricherTestSupport {
         writeProps();
 
         Probe probe = new SpringBootHealthCheckEnricher(context)
-          .buildProbe(10, null, null, 3, 1);
+          .buildProbe(10, null, null, 3, 1,null);
         assertHTTPGetPathAndPort(probe, "/p2" + getActuatorDefaultBasePath() + "/health", 8383);
     }
 
@@ -189,7 +215,7 @@ public abstract class AbstractSpringBootHealthCheckEnricherTestSupport {
         writeProps();
 
         Probe probe = new SpringBootHealthCheckEnricher(context)
-          .buildProbe(10, null, null, 3, 1);
+          .buildProbe(10, null, null, 3, 1,null);
         assertHTTPGetPathAndPort(probe, "/p2/actuator-base-path/health", 8383);
     }
 
@@ -207,7 +233,7 @@ public abstract class AbstractSpringBootHealthCheckEnricherTestSupport {
         writeProps();
 
         Probe probe = new SpringBootHealthCheckEnricher(context)
-          .buildProbe(10, null, null, 3, 1);
+          .buildProbe(10, null, null, 3, 1,null);
         assertHTTPGetPathAndPort(probe, "/health", 8383);
     }
 
@@ -227,7 +253,7 @@ public abstract class AbstractSpringBootHealthCheckEnricherTestSupport {
         writeProps();
 
         Probe probe = new SpringBootHealthCheckEnricher(context)
-          .buildProbe(10, null, null, 3, 1);
+          .buildProbe(10, null, null, 3, 1,null);
         assertHTTPGetPathAndPort(probe, "/p2" + getActuatorDefaultBasePath() + "/health", 8383);
     }
 
@@ -249,7 +275,7 @@ public abstract class AbstractSpringBootHealthCheckEnricherTestSupport {
         writeProps();
 
         Probe probe = new SpringBootHealthCheckEnricher(context)
-          .buildProbe(10, null, null, 3, 1);
+          .buildProbe(10, null, null, 3, 1,null);
         assertHTTPGetPathAndPort(probe, "/p2/actuator-base-path/health", 8383);
     }
 
@@ -270,7 +296,7 @@ public abstract class AbstractSpringBootHealthCheckEnricherTestSupport {
         writeProps();
 
         Probe probe = new SpringBootHealthCheckEnricher(context)
-          .buildProbe(10, null, null, 3, 1);
+          .buildProbe(10, null, null, 3, 1,null);
         assertHTTPGetPathAndPort(probe, "/health", 8383);
     }
 
@@ -283,7 +309,7 @@ public abstract class AbstractSpringBootHealthCheckEnricherTestSupport {
         writeProps();
 
         Probe probe = new SpringBootHealthCheckEnricher(context)
-          .buildProbe(10, null, null, 3, 1);
+          .buildProbe(10, null, null, 3, 1,null);
         assertHTTPGetPathAndPort(probe, "/p1" + getActuatorDefaultBasePath() +"/health", 8282);
     }
 
@@ -298,7 +324,7 @@ public abstract class AbstractSpringBootHealthCheckEnricherTestSupport {
         writeProps();
 
         Probe probe = new SpringBootHealthCheckEnricher(context)
-          .buildProbe(10, null, null, 3, 1);
+          .buildProbe(10, null, null, 3, 1,null);
         assertHTTPGetPathAndPort(probe, "/p1/actuator-base-path/health", 8282);
     }
 
@@ -312,7 +338,7 @@ public abstract class AbstractSpringBootHealthCheckEnricherTestSupport {
         writeProps();
 
         Probe probe = new SpringBootHealthCheckEnricher(context)
-          .buildProbe(10, null, null, 3, 1);
+          .buildProbe(10, null, null, 3, 1,null);
         assertHTTPGetPathAndPort(probe, "/health", 8282);
     }
 
@@ -327,7 +353,7 @@ public abstract class AbstractSpringBootHealthCheckEnricherTestSupport {
         writeProps();
 
         Probe probe = new SpringBootHealthCheckEnricher(context)
-          .buildProbe(10, null, null, 3, 1);
+          .buildProbe(10, null, null, 3, 1,null);
         assertHTTPGetPathAndPort(probe, "/p2/p1" + getActuatorDefaultBasePath() + "/health", 8282);
     }
 
@@ -344,7 +370,7 @@ public abstract class AbstractSpringBootHealthCheckEnricherTestSupport {
         writeProps();
 
         Probe probe = new SpringBootHealthCheckEnricher(context)
-          .buildProbe(10, null, null, 3, 1);
+          .buildProbe(10, null, null, 3, 1,null);
         assertHTTPGetPathAndPort(probe, "/p2/p1/actuator-base-path/health", 8282);
     }
 
@@ -360,7 +386,7 @@ public abstract class AbstractSpringBootHealthCheckEnricherTestSupport {
         writeProps();
 
         Probe probe = new SpringBootHealthCheckEnricher(context)
-          .buildProbe(10, null, null, 3, 1);
+          .buildProbe(10, null, null, 3, 1,null);
         assertHTTPGetPathAndPort(probe, "/health", 8282);
     }
 
@@ -373,7 +399,7 @@ public abstract class AbstractSpringBootHealthCheckEnricherTestSupport {
         writeProps();
 
         Probe probe = new SpringBootHealthCheckEnricher(context)
-          .buildProbe(10, null, null, 3, 1);
+          .buildProbe(10, null, null, 3, 1,null);
         assertHTTPGetPathAndPort(probe, "/servlet" + getActuatorDefaultBasePath() + "/health", 8282);
     }
 
@@ -388,7 +414,7 @@ public abstract class AbstractSpringBootHealthCheckEnricherTestSupport {
         writeProps();
 
         Probe probe = new SpringBootHealthCheckEnricher(context)
-          .buildProbe(10, null, null, 3, 1);
+          .buildProbe(10, null, null, 3, 1,null);
         assertHTTPGetPathAndPort(probe, "/servlet/actuator-base-path/health", 8282);
     }
 
@@ -402,7 +428,7 @@ public abstract class AbstractSpringBootHealthCheckEnricherTestSupport {
         writeProps();
 
         Probe probe = new SpringBootHealthCheckEnricher(context)
-          .buildProbe(10, null, null, 3, 1);
+          .buildProbe(10, null, null, 3, 1,null);
         assertHTTPGetPathAndPort(probe, "/health", 8282);
     }
 
@@ -418,7 +444,7 @@ public abstract class AbstractSpringBootHealthCheckEnricherTestSupport {
         writeProps();
 
         Probe probe = new SpringBootHealthCheckEnricher(context)
-          .buildProbe(10, null, null, 3, 1);
+          .buildProbe(10, null, null, 3, 1,null);
         assertHTTPGetPathAndPort(probe, "/servlet/p1" + getActuatorDefaultBasePath() + "/health", 8282);
     }
 
@@ -436,7 +462,7 @@ public abstract class AbstractSpringBootHealthCheckEnricherTestSupport {
         writeProps();
 
         Probe probe = new SpringBootHealthCheckEnricher(context)
-          .buildProbe(10, null, null, 3, 1);
+          .buildProbe(10, null, null, 3, 1,null);
         assertHTTPGetPathAndPort(probe, "/servlet/p1/actuator-base-path/health", 8282);
     }
 
@@ -453,7 +479,7 @@ public abstract class AbstractSpringBootHealthCheckEnricherTestSupport {
         writeProps();
 
         Probe probe = new SpringBootHealthCheckEnricher(context)
-          .buildProbe(10, null, null, 3, 1);
+          .buildProbe(10, null, null, 3, 1,null);
         assertHTTPGetPathAndPort(probe, "/health", 8282);
     }
 
@@ -471,7 +497,7 @@ public abstract class AbstractSpringBootHealthCheckEnricherTestSupport {
         writeProps();
 
         Probe probe = new SpringBootHealthCheckEnricher(context)
-          .buildProbe(10, null, null, 3, 1);
+          .buildProbe(10, null, null, 3, 1,null);
         assertHTTPGetPathAndPort(probe, "/p2/servlet/p1" + getActuatorDefaultBasePath() + "/health", 8282);
     }
 
@@ -491,7 +517,7 @@ public abstract class AbstractSpringBootHealthCheckEnricherTestSupport {
         writeProps();
 
         Probe probe = new SpringBootHealthCheckEnricher(context)
-          .buildProbe(10, null, null, 3, 1);
+          .buildProbe(10, null, null, 3, 1,null);
         assertHTTPGetPathAndPort(probe, "/p2/servlet/p1/actuator-base-path/health", 8282);
     }
 
@@ -510,7 +536,7 @@ public abstract class AbstractSpringBootHealthCheckEnricherTestSupport {
         writeProps();
 
         Probe probe = new SpringBootHealthCheckEnricher(context)
-          .buildProbe(10, null, null, 3, 1);
+          .buildProbe(10, null, null, 3, 1,null);
         assertHTTPGetPathAndPort(probe, "/health", 8282);
     }
 
@@ -520,7 +546,7 @@ public abstract class AbstractSpringBootHealthCheckEnricherTestSupport {
         writeProps();
 
         Probe probe = new SpringBootHealthCheckEnricher(context)
-          .buildProbe(10, null, null, 3, 1);
+          .buildProbe(10, null, null, 3, 1,null);
         assertHTTPGetSchemeAndPort(probe, "HTTP", 8443);
     }
 
@@ -532,7 +558,7 @@ public abstract class AbstractSpringBootHealthCheckEnricherTestSupport {
         writeProps();
 
         Probe probe = new SpringBootHealthCheckEnricher(context)
-          .buildProbe(10, null, null, 3, 1);
+          .buildProbe(10, null, null, 3, 1,null);
         assertHTTPGetSchemeAndPort(probe, "HTTP", 8080);
     }
 
@@ -543,7 +569,7 @@ public abstract class AbstractSpringBootHealthCheckEnricherTestSupport {
         writeProps();
 
         Probe probe = new SpringBootHealthCheckEnricher(context)
-          .buildProbe(10, null, null, 3, 1);
+          .buildProbe(10, null, null, 3, 1,null);
         assertHTTPGetSchemeAndPort(probe, "HTTPS", 8443);
     }
 
@@ -556,7 +582,7 @@ public abstract class AbstractSpringBootHealthCheckEnricherTestSupport {
         writeProps();
 
         Probe probe = new SpringBootHealthCheckEnricher(context)
-          .buildProbe(10, null, null, 3, 1);
+          .buildProbe(10, null, null, 3, 1,null);
         assertHTTPGetSchemeAndPort(probe, "HTTP", 8081);
     }
 
@@ -570,14 +596,81 @@ public abstract class AbstractSpringBootHealthCheckEnricherTestSupport {
         writeProps();
 
         Probe probe = new SpringBootHealthCheckEnricher(context)
-          .buildProbe(10, null, null, 3, 1);
+          .buildProbe(10, null, null, 3, 1,null);
         assertHTTPGetSchemeAndPort(probe, "HTTPS", 8443);
+    }
+
+    @Test
+    void schemeWithServerKeystoreButSslDisabled() {
+        props.put("server.port", "8443");
+        props.put("server.ssl.key-store", "classpath:keystore.p12");
+        props.put("server.ssl.enabled", "false");
+        writeProps();
+
+        Probe probe = new SpringBootHealthCheckEnricher(context)
+          .buildProbe(10, null, null, 3, 1,null);
+        assertHTTPGetSchemeAndPort(probe, "HTTP", 8443);
+    }
+
+    @Test
+    void schemeWithManagementKeystoreButSslDisabled() {
+        props.put("server.port", "8080");
+        props.put("management.port", "8443");
+        props.put("management.server.port", "8443");
+        props.put("management.ssl.key-store", "classpath:keystore.p12");
+        props.put("management.server.ssl.key-store", "classpath:keystore.p12");
+        props.put("management.ssl.enabled", "false");
+        props.put("management.server.ssl.enabled", "false");
+        writeProps();
+
+        Probe probe = new SpringBootHealthCheckEnricher(context)
+          .buildProbe(10, null, null, 3, 1,null);
+        assertHTTPGetSchemeAndPort(probe, "HTTP", 8443);
+    }
+
+    @Test
+    void schemeWithServerKeystoreAndSslExplicitlyEnabled() {
+        props.put("server.port", "8443");
+        props.put("server.ssl.key-store", "classpath:keystore.p12");
+        props.put("server.ssl.enabled", "true");
+        writeProps();
+
+        Probe probe = new SpringBootHealthCheckEnricher(context)
+          .buildProbe(10, null, null, 3, 1,null);
+        assertHTTPGetSchemeAndPort(probe, "HTTPS", 8443);
+    }
+
+    @Test
+    void schemeWithManagementKeystoreAndSslExplicitlyEnabled() {
+        props.put("server.port", "8080");
+        props.put("management.port", "8443");
+        props.put("management.server.port", "8443");
+        props.put("management.ssl.key-store", "classpath:keystore.p12");
+        props.put("management.server.ssl.key-store", "classpath:keystore.p12");
+        props.put("management.ssl.enabled", "true");
+        props.put("management.server.ssl.enabled", "true");
+        writeProps();
+
+        Probe probe = new SpringBootHealthCheckEnricher(context)
+          .buildProbe(10, null, null, 3, 1,null);
+        assertHTTPGetSchemeAndPort(probe, "HTTPS", 8443);
+    }
+
+    @Test
+    void schemeWithNoKeystoreAndSslEnabled() {
+        props.put("server.port", "8443");
+        props.put("server.ssl.enabled", "true");
+        writeProps();
+
+        Probe probe = new SpringBootHealthCheckEnricher(context)
+          .buildProbe(10, null, null, 3, 1,null);
+        assertHTTPGetSchemeAndPort(probe, "HTTP", 8443);
     }
 
     @Test
     void testDefaultInitialDelayForLivenessAndReadiness() {
         SpringBootHealthCheckEnricher enricher = new SpringBootHealthCheckEnricher(context);
-        when(context.getProjectClassLoaders().isClassInCompileClasspath(true, REQUIRED_CLASSES))
+        when(context.getProjectClassLoaders().isClassInCompileClasspath(true, REQUIRED_CLASSES_SPRING_BOOT))
           .thenReturn(true);
         when(context.getProjectClassLoaders().getCompileClassLoader())
           .thenReturn(new URLClassLoader(new URL[0], AbstractSpringBootHealthCheckEnricherTestSupport.class.getClassLoader()));
@@ -597,7 +690,7 @@ public abstract class AbstractSpringBootHealthCheckEnricherTestSupport {
         enricherConfig.put("timeoutSeconds", "120");
         context.getConfiguration().getProcessorConfig()
           .setConfig(Collections.singletonMap("jkube-healthcheck-spring-boot", enricherConfig));
-        when(projectClassLoaders.isClassInCompileClasspath(true, REQUIRED_CLASSES))
+        when(projectClassLoaders.isClassInCompileClasspath(true, REQUIRED_CLASSES_SPRING_BOOT))
           .thenReturn(true);
         when(projectClassLoaders.getCompileClassLoader())
           .thenReturn(new URLClassLoader(new URL[0], AbstractSpringBootHealthCheckEnricherTestSupport.class.getClassLoader()));
@@ -620,7 +713,7 @@ public abstract class AbstractSpringBootHealthCheckEnricherTestSupport {
         enricherConfig.put("livenessProbePeriodSeconds", "50");
         context.getConfiguration().getProcessorConfig()
           .setConfig(Collections.singletonMap("jkube-healthcheck-spring-boot", enricherConfig));
-        when(projectClassLoaders.isClassInCompileClasspath(true, REQUIRED_CLASSES))
+        when(projectClassLoaders.isClassInCompileClasspath(true, REQUIRED_CLASSES_SPRING_BOOT))
           .thenReturn(true);
         when(projectClassLoaders.getCompileClassLoader())
           .thenReturn(new URLClassLoader(new URL[0], AbstractSpringBootHealthCheckEnricherTestSupport.class.getClassLoader()));
@@ -632,6 +725,208 @@ public abstract class AbstractSpringBootHealthCheckEnricherTestSupport {
 
         Probe livenessProbe = enricher.getLivenessProbe();
         assertHealthCheckDelays(livenessProbe, 460, 50, null);
+    }
+
+    @Test
+    void testBuildProbeExplicitPathCreation_whenManagementHealthProbesEnabledIsTrue(){
+        props.put("management.health.probes.enabled","true");
+        writeProps();
+
+        Probe readinessProbe = new SpringBootHealthCheckEnricher(context).buildProbe(10, null, null, 3, 1,"/example");
+        assertHTTPGetPathAndPort(readinessProbe,getActuatorDefaultBasePath() + "/health/example", 8080);
+    }
+
+    @Test
+    void testBuildProbeDefaultPathCreation_whenManagementHealthProbesEnabledIsFalse(){
+        props.put("management.health.probes.enabled","false");
+        writeProps();
+
+        Probe readinessProbe = new SpringBootHealthCheckEnricher(context).buildProbe(10, null, null, 3, 1,"/example");
+        assertHTTPGetPathAndPort(readinessProbe,getActuatorDefaultBasePath() + "/health", 8080);
+    }
+
+    @Test
+    void testLivenessAndReadinessProbesForExplicitPath_whenManagementHealthProbesEnabledIsTrue(){
+        props.put("management.health.probes.enabled","true");
+        writeProps();
+
+        when(context.getProjectClassLoaders().isClassInCompileClasspath(true, REQUIRED_CLASSES_SPRING_BOOT))
+                .thenReturn(true);
+        when(context.getProjectClassLoaders().getCompileClassLoader())
+                .thenReturn(new URLClassLoader(new URL[0], AbstractSpringBootHealthCheckEnricherTestSupport.class.getClassLoader()));
+
+        SpringBootHealthCheckEnricher enricher = new SpringBootHealthCheckEnricher(context);
+
+        Probe livenessProbe = enricher.getLivenessProbe();
+        assertHTTPGetPathAndPort(livenessProbe,getActuatorDefaultBasePath() + "/health/liveness",8080);
+
+        Probe readinessProbe = enricher.getReadinessProbe();
+        assertHTTPGetPathAndPort(readinessProbe,getActuatorDefaultBasePath() + "/health/readiness",8080);
+
+    }
+
+    @Test
+    void testLivenessAndReadinessProbesForDefaultPath_whenDefaultConfigUsed(){
+        when(context.getProjectClassLoaders().isClassInCompileClasspath(true, REQUIRED_CLASSES_SPRING_BOOT))
+                .thenReturn(true);
+        SpringBootHealthCheckEnricher enricher = new SpringBootHealthCheckEnricher(context);
+
+        Probe livenessProbe = enricher.getLivenessProbe();
+        assertHTTPGetPathAndPort(livenessProbe,getActuatorDefaultBasePath() + "/health",8080);
+
+        Probe readinessProbe = enricher.getReadinessProbe();
+        assertHTTPGetPathAndPort(readinessProbe,getActuatorDefaultBasePath() + "/health",8080);
+    }
+
+    @Test
+    void testLivenessAndReadinessProbesForDefaultPath_whenManagementHealthProbesEnabledIsFalse(){
+        props.put("management.health.probes.enabled","false");
+        writeProps();
+
+        when(projectClassLoaders.isClassInCompileClasspath(true, REQUIRED_CLASSES_SPRING_BOOT))
+                .thenReturn(true);
+
+        SpringBootHealthCheckEnricher enricher = new SpringBootHealthCheckEnricher(context);
+
+        Probe livenessProbe = enricher.getLivenessProbe();
+        assertHTTPGetPathAndPort(livenessProbe,getActuatorDefaultBasePath() + "/health",8080);
+        Probe readinessProbe = enricher.getReadinessProbe();
+        assertHTTPGetPathAndPort(readinessProbe,getActuatorDefaultBasePath() + "/health",8080);
+    }
+
+    @Nested
+    @DisplayName("Spring Web Flux Dependency present")
+    class SpringWebFlux {
+        @BeforeEach
+        void setup() {
+            context.getProject().setDependencies(Collections.singletonList(Dependency.builder()
+              .groupId("org.springframework.boot")
+              .artifactId("spring-boot-starter-webflux")
+              .version(getSpringBootVersion())
+              .build()));
+            when(context.getProjectClassLoaders().isClassInCompileClasspath(true, REQUIRED_CLASSES_SPRING_BOOT))
+              .thenReturn(true);
+        }
+
+        @Nested
+        @DisplayName("spring.webflux.base-path property configured")
+        class SpringWebFluxBasePathConfigured {
+            @BeforeEach
+            void setUp() {
+                props.put("spring.webflux.base-path", "/webflux");
+            }
+
+            @AfterEach
+            void tearDown() {
+                props.clear();
+            }
+
+            @Test
+            @DisplayName("when management server sharing main server port, then liveness, readiness probes use web flux base path in endpoints")
+            void whenProbesGenerated_thenProbesAddWebFluxBasePath() {
+                // Given
+                props.put("management.port", "8383");
+                props.put("management.server.port", "8383");
+                writeProps();
+                SpringBootHealthCheckEnricher enricher = new SpringBootHealthCheckEnricher(context);
+                // When
+                Probe livenessProbe = enricher.getLivenessProbe();
+                Probe readinessProbe = enricher.getReadinessProbe();
+                // Then
+                assertHTTPGetPathAndPort(livenessProbe, getActuatorDefaultBasePath() + "/health",8383);
+                assertHTTPGetPathAndPort(readinessProbe,getActuatorDefaultBasePath() + "/health",8383);
+            }
+
+            @Test
+            @DisplayName("when a separate management server port configured, then spring.webflux.base-path is ignored")
+            void whenManagementServerRunningOnDifferentPort_thenProbesDoNotUseWebFluxBasePath() {
+                // Given
+                writeProps();
+                SpringBootHealthCheckEnricher enricher = new SpringBootHealthCheckEnricher(context);
+                // When
+                Probe livenessProbe = enricher.getLivenessProbe();
+                Probe readinessProbe = enricher.getReadinessProbe();
+                // Then
+                assertHTTPGetPathAndPort(livenessProbe,"/webflux" + getActuatorDefaultBasePath() + "/health",8080);
+                assertHTTPGetPathAndPort(readinessProbe,"/webflux" + getActuatorDefaultBasePath() + "/health",8080);
+            }
+        }
+
+        @Test
+        @DisplayName("when no explicit base path configured, then use default base path")
+        void whenManagementServerRunningOnDifferentPort_thenProbesDoNotUseWebFluxBasePath() {
+            // Given
+            writeProps();
+            SpringBootHealthCheckEnricher enricher = new SpringBootHealthCheckEnricher(context);
+            // When
+            Probe livenessProbe = enricher.getLivenessProbe();
+            Probe readinessProbe = enricher.getReadinessProbe();
+            // Then
+            assertHTTPGetPathAndPort(livenessProbe,getActuatorDefaultBasePath() + "/health",8080);
+            assertHTTPGetPathAndPort(readinessProbe,getActuatorDefaultBasePath() + "/health",8080);
+        }
+    }
+
+    @Test
+    @DisplayName("should detect Spring Boot 4 actuator classes and generate probes")
+    void whenSpringBoot4ClassesOnly_thenProbesGenerated() {
+        // Given
+        when(context.getProjectClassLoaders().isClassInCompileClasspath(true, REQUIRED_CLASSES_SPRING_BOOT))
+          .thenReturn(false);
+        when(context.getProjectClassLoaders().isClassInCompileClasspath(true, REQUIRED_CLASSES_SPRING_BOOT_4))
+          .thenReturn(true);
+
+        SpringBootHealthCheckEnricher enricher = new SpringBootHealthCheckEnricher(context);
+
+        // When
+        Probe readinessProbe = enricher.getReadinessProbe();
+        Probe livenessProbe = enricher.getLivenessProbe();
+
+        // Then
+        assertThat(readinessProbe).isNotNull();
+        assertThat(livenessProbe).isNotNull();
+        assertHTTPGetPathAndPort(readinessProbe, getActuatorDefaultBasePath() + "/health", 8080);
+        assertHTTPGetPathAndPort(livenessProbe, getActuatorDefaultBasePath() + "/health", 8080);
+    }
+
+    @Test
+    @DisplayName("should work when both Spring Boot 3 and Spring Boot 4 classes are present")
+    void whenBothSpringBoot3And4Classes_thenProbesGenerated() {
+        // Given
+        when(context.getProjectClassLoaders().isClassInCompileClasspath(true, REQUIRED_CLASSES_SPRING_BOOT))
+          .thenReturn(true);
+        when(context.getProjectClassLoaders().isClassInCompileClasspath(true, REQUIRED_CLASSES_SPRING_BOOT_4))
+          .thenReturn(true);
+
+        SpringBootHealthCheckEnricher enricher = new SpringBootHealthCheckEnricher(context);
+
+        // When
+        Probe readinessProbe = enricher.getReadinessProbe();
+        Probe livenessProbe = enricher.getLivenessProbe();
+
+        // Then
+        assertThat(readinessProbe).isNotNull();
+        assertThat(livenessProbe).isNotNull();
+    }
+
+    @Test
+    @DisplayName("should return null when neither Spring Boot 3 nor Spring Boot 4 classes are present")
+    void whenNoSpringBootClasses_thenNoProbesGenerated() {
+        // Given
+        when(context.getProjectClassLoaders().isClassInCompileClasspath(true, REQUIRED_CLASSES_SPRING_BOOT))
+          .thenReturn(false);
+        when(context.getProjectClassLoaders().isClassInCompileClasspath(true, REQUIRED_CLASSES_SPRING_BOOT_4))
+          .thenReturn(false);
+
+        SpringBootHealthCheckEnricher enricher = new SpringBootHealthCheckEnricher(context);
+
+        // When
+        Probe readinessProbe = enricher.getReadinessProbe();
+        Probe livenessProbe = enricher.getLivenessProbe();
+
+        // Then
+        assertThat(readinessProbe).isNull();
+        assertThat(livenessProbe).isNull();
     }
 
     private void assertHTTPGetPathAndPort(Probe probe, String path, int port) {

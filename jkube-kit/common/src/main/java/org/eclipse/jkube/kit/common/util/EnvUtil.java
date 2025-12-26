@@ -14,9 +14,8 @@
 package org.eclipse.jkube.kit.common.util;
 
 import org.apache.commons.lang3.StringUtils;
+import org.eclipse.jkube.kit.common.JKubeException;
 
-import javax.annotation.Nonnull;
-import javax.annotation.Nullable;
 import java.io.File;
 import java.io.IOException;
 import java.nio.charset.StandardCharsets;
@@ -183,8 +182,7 @@ public class EnvUtil {
      * @param input A list of String
      * @return A list of Non-Empty (length ;&gt; 0) String
      */
-    @Nonnull
-    public static List<String> removeEmptyEntries(@Nullable List<String> input) {
+    public static List<String> removeEmptyEntries(List<String> input) {
         if (input == null) {
             return Collections.emptyList();
         }
@@ -197,7 +195,6 @@ public class EnvUtil {
      * @param input Iterable over strings.
      * @return An Iterable over string which breaks down each input element at comma boundaries
      */
-    @Nonnull
     public static List<String> splitAtCommasAndTrim(Iterable<String> input) {
         if (input == null) {
             return Collections.emptyList();
@@ -214,27 +211,6 @@ public class EnvUtil {
             res[i] = split[i].replaceAll("\\\\ ", " ");
         }
         return res;
-    }
-
-
-    /**
-     * Join a list of objects to a string with a given separator by calling Object.toString() on the elements.
-     *
-     * @param list      to join
-     * @param separator separator to use
-     * @return the joined string.
-     */
-    public static String stringJoin(List list, String separator) {
-        StringBuilder ret = new StringBuilder();
-        boolean first = true;
-        for (Object o : list) {
-            if (!first) {
-                ret.append(separator);
-            }
-            ret.append(o);
-            first = false;
-        }
-        return ret.toString();
     }
 
     /**
@@ -262,7 +238,7 @@ public class EnvUtil {
                 ret.put(mapKey, properties.getProperty(propName));
             }
         }
-        return ret.size() > 0 ? ret : null;
+        return !ret.isEmpty() ? ret : null;
     }
 
     /**
@@ -446,7 +422,7 @@ public class EnvUtil {
       }
     }
 
-    public static Date loadTimestamp(File tsFile) throws IOException {
+    public static Date loadTimestamp(File tsFile) {
         try {
             if (tsFile.exists()) {
                 final String ts = new String(Files.readAllBytes(tsFile.toPath()), StandardCharsets.US_ASCII);
@@ -455,7 +431,7 @@ public class EnvUtil {
                 return null;
             }
         } catch (IOException e) {
-            throw new IOException("Cannot read timestamp " + tsFile, e);
+            throw JKubeException.launderThrowable("Cannot read timestamp " + tsFile, e);
         }
     }
 
@@ -533,5 +509,14 @@ public class EnvUtil {
                 .orElse(null);
         }
         return null;
+    }
+
+    public static String javaBinary() {
+        String path = new File(EnvUtil.getProperty("java.home")).toPath().resolve("bin").resolve("java").toFile()
+          .getAbsolutePath();
+        if (isWindows()) {
+            path = path.concat(".exe");
+        }
+        return path;
     }
 }

@@ -20,7 +20,7 @@
 
     <groupId>org.eclipse.jkube.quickstarts.maven</groupId>
     <artifactId>javaee8-webprofile-liberty</artifactId>
-    <version>1.15.0</version>
+    <version>1.18.2</version>
     <name>Eclipse JKube :: Quickstarts :: Maven :: JavaEE 8 WebProfile</name>
     <packaging>pom</packaging>
 
@@ -48,7 +48,7 @@
         <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
         <project.reporting.outputEncoding>UTF-8</project.reporting.outputEncoding>
         <javaee.api.version>8.0</javaee.api.version>
-        <jersey.version>2.26</jersey.version>
+        <jersey.version>2.46</jersey.version>
         <junit.version>4.13.2</junit.version>
     </properties>
 

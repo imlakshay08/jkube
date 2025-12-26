@@ -13,6 +13,7 @@
  */
 package org.eclipse.jkube.maven.plugin.mojo.build;
 
+import org.apache.commons.io.FileUtils;
 import org.apache.maven.artifact.DependencyResolutionRequiredException;
 import org.apache.maven.plugins.annotations.Component;
 import org.apache.maven.shared.filtering.MavenFileFilter;
@@ -26,8 +27,7 @@ import org.eclipse.jkube.kit.common.util.EnvUtil;
 import org.eclipse.jkube.kit.common.util.LazyBuilder;
 import org.eclipse.jkube.kit.common.util.MavenUtil;
 import org.eclipse.jkube.kit.common.util.ResourceUtil;
-import org.eclipse.jkube.kit.config.access.ClusterAccess;
-import org.eclipse.jkube.kit.config.access.ClusterConfiguration;
+import org.eclipse.jkube.kit.common.access.ClusterConfiguration;
 
 import org.apache.maven.execution.MavenSession;
 import org.apache.maven.plugin.AbstractMojo;
@@ -145,7 +145,7 @@ public abstract class AbstractJKubeMojo extends AbstractMojo implements KitLogge
 
     protected KitLogger log;
 
-    protected ClusterAccess clusterAccess;
+    protected ClusterConfiguration clusterConfiguration;
 
     // The JKube service hub
     protected JKubeServiceHub jkubeServiceHub;
@@ -154,22 +154,22 @@ public abstract class AbstractJKubeMojo extends AbstractMojo implements KitLogge
 
     @Override
     public void execute() throws MojoExecutionException, MojoFailureException {
-        try {
-            init();
-            if (shouldSkip()) {
-                log.info("`%s` goal is skipped.", mojoExecution.getMojoDescriptor().getFullGoalName());
-                return;
-            }
-            executeInternal();
-        } catch (DependencyResolutionRequiredException e) {
-            throw new MojoFailureException(e.getMessage());
+        init();
+        if (shouldSkip()) {
+            log.info("`%s` goal is skipped.", mojoExecution.getMojoDescriptor().getFullGoalName());
+            return;
         }
+        executeInternal();
     }
 
-    protected void init() throws DependencyResolutionRequiredException {
+    protected void init() throws MojoFailureException {
         log = createLogger(null);
-        clusterAccess = new ClusterAccess(initClusterConfiguration());
-        javaProject = MavenUtil.convertMavenProjectToJKubeProject(project, session);
+        clusterConfiguration = initClusterConfiguration();
+        try {
+          javaProject = MavenUtil.convertMavenProjectToJKubeProject(project, session);
+        } catch (DependencyResolutionRequiredException e) {
+          throw new MojoFailureException(e.getMessage());
+        }
         jkubeServiceHub = initJKubeServiceHubBuilder(javaProject).build();
         resources = updateResourceConfigNamespace(namespace, resources);
     }
@@ -233,12 +233,18 @@ public abstract class AbstractJKubeMojo extends AbstractMojo implements KitLogge
             .configuration(JKubeConfiguration.builder()
                 .project(javaProject)
                 .reactorProjects(Collections.singletonList(javaProject))
-                .registryConfig(RegistryConfig.builder()
+                // TODO: Should provide same values as AbstractDockerMojo#getRegistryConfig
+                //       AbstractDockerMojo should be eventually removed in favor of AbstractJKubeMojo
+                .pullRegistryConfig(RegistryConfig.builder()
                     .settings(MavenUtil.getRegistryServerFromMavenSettings(settings))
                     .passwordDecryptionMethod(this::decrypt)
                     .build())
+                .pushRegistryConfig(RegistryConfig.builder()
+                    .settings(MavenUtil.getRegistryServerFromMavenSettings(settings))
+                    .passwordDecryptionMethod(this::decrypt)
+                    .build())
+                .clusterConfiguration(clusterConfiguration)
                 .build())
-            .clusterAccess(clusterAccess)
             .offline(offline)
             .platformMode(getRuntimeMode())
             .resourceServiceConfig(initResourceServiceConfig())
@@ -256,6 +262,13 @@ public abstract class AbstractJKubeMojo extends AbstractMojo implements KitLogge
             getKitLogger().error("Failure in decrypting password");
         }
         return password;
+    }
+
+    protected void cleanWorkDirectory() throws IOException {
+        if (workDir.exists()) {
+            getKitLogger().verbose("Cleaning work directory: %s", workDir);
+            FileUtils.cleanDirectory(workDir);
+        }
     }
 
     private File[] mavenFilterFiles(File[] resourceFiles, File outDir) throws IOException {

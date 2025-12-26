@@ -346,7 +346,7 @@ public class KubernetesResourceUtil {
         for (ContainerPort cp : ports) {
             String n1 = cp.getName();
             String n2 = port.getName();
-            if (n1 != null && n2 != null && n1.equals(n2)) {
+            if (n1 != null && n1.equals(n2)) {
                 return;
             }
             Integer p1 = cp.getContainerPort();
@@ -630,7 +630,7 @@ public class KubernetesResourceUtil {
     // rather than a full complete manifest
     // we could also use an annotation?
     private static boolean isLocalCustomisation(PodSpec podSpec) {
-        List<Container> containers = podSpec.getContainers() != null ? podSpec.getContainers() : Collections.<Container>emptyList();
+        List<Container> containers = podSpec.getContainers() != null ? podSpec.getContainers() : Collections.emptyList();
         for (Container container : containers) {
             if (StringUtils.isNotBlank(container.getImage())) {
                 return false;
